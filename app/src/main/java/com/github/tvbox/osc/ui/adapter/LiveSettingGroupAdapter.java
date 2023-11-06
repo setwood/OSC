@@ -1,59 +1,57 @@
 package com.github.tvbox.osc.ui.adapter;
 
-import android.graphics.Color;
 import android.widget.TextView;
-
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.chad.library.adapter.base.BaseViewHolder;
 import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.bean.LiveSettingGroup;
-
 import java.util.ArrayList;
 
-
-/**
- * @author pj567
- * @date :2021/1/12
- * @description:
- */
 public class LiveSettingGroupAdapter extends BaseQuickAdapter<LiveSettingGroup, BaseViewHolder> {
-    private int selectedGroupIndex = -1;
     private int focusedGroupIndex = -1;
+    private int selectedGroupIndex = -1;
 
     public LiveSettingGroupAdapter() {
-        super(R.layout.item_live_setting_group, new ArrayList<>());
+        super(R.layout.item_live_setting_group, new ArrayList());
     }
 
-    @Override
-    protected void convert(BaseViewHolder holder, LiveSettingGroup group) {
-        TextView tvGroupName = holder.getView(R.id.tvSettingGroupName);
-        tvGroupName.setText(group.getGroupName());
-        int groupIndex = group.getGroupIndex();
-        if (groupIndex == selectedGroupIndex && groupIndex != focusedGroupIndex) {
-            tvGroupName.setTextColor(mContext.getResources().getColor(R.color.color_1890FF));
+    /* access modifiers changed from: protected */
+    public void convert(BaseViewHolder baseViewHolder, LiveSettingGroup liveSettingGroup) {
+        TextView textView = (TextView) baseViewHolder.getView(R.id.tvSettingGroupName);
+        textView.setText(liveSettingGroup.getGroupName());
+        int groupIndex = liveSettingGroup.getGroupIndex();
+        if (groupIndex != this.selectedGroupIndex || groupIndex == this.focusedGroupIndex) {
+            textView.setTextColor(-1);
         } else {
-            tvGroupName.setTextColor(Color.WHITE);
+            textView.setTextColor(this.mContext.getResources().getColor(R.color.color_theme));
         }
     }
 
-    public void setSelectedGroupIndex(int selectedGroupIndex) {
-        int preSelectedGroupIndex = this.selectedGroupIndex;
-        this.selectedGroupIndex = selectedGroupIndex;
-        if (preSelectedGroupIndex != -1)
-            notifyItemChanged(preSelectedGroupIndex);
-        if (this.selectedGroupIndex != -1)
-            notifyItemChanged(this.selectedGroupIndex);
+    public void setSelectedGroupIndex(int i) {
+        int i2 = this.selectedGroupIndex;
+        this.selectedGroupIndex = i;
+        if (i2 != -1) {
+            notifyItemChanged(i2);
+        }
+        int i3 = this.selectedGroupIndex;
+        if (i3 != -1) {
+            notifyItemChanged(i3);
+        }
     }
 
     public int getSelectedGroupIndex() {
-        return selectedGroupIndex;
+        return this.selectedGroupIndex;
     }
 
-    public void setFocusedGroupIndex(int focusedGroupIndex) {
-        this.focusedGroupIndex = focusedGroupIndex;
-        if (this.focusedGroupIndex != -1)
-            notifyItemChanged(this.focusedGroupIndex);
-        else if (this.selectedGroupIndex != -1)
-            notifyItemChanged(this.selectedGroupIndex);
+    public void setFocusedGroupIndex(int i) {
+        this.focusedGroupIndex = i;
+        if (i != -1) {
+            notifyItemChanged(i);
+            return;
+        }
+        int i2 = this.selectedGroupIndex;
+        if (i2 != -1) {
+            notifyItemChanged(i2);
+        }
     }
 }

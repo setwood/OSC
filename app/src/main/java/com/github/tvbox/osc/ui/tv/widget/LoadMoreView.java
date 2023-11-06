@@ -1,27 +1,28 @@
 package com.github.tvbox.osc.ui.tv.widget;
 
-
 import com.github.tvbox.osc.R;
 
 public final class LoadMoreView extends com.chad.library.adapter.base.loadmore.LoadMoreView {
-
-    @Override
+    @Override // com.chad.library.adapter.base.loadmore.LoadMoreView
     public int getLayoutId() {
         return R.layout.item_view_load_more;
     }
 
-    @Override
-    protected int getLoadingViewId() {
-        return R.id.load_more_loading_view;
+    /* access modifiers changed from: protected */
+    @Override // com.chad.library.adapter.base.loadmore.LoadMoreView
+    public int getLoadEndViewId() {
+        return 2131296610;
     }
 
-    @Override
-    protected int getLoadFailViewId() {
-        return R.id.load_more_load_fail_view;
+    /* access modifiers changed from: protected */
+    @Override // com.chad.library.adapter.base.loadmore.LoadMoreView
+    public int getLoadFailViewId() {
+        return 2131296611;
     }
 
-    @Override
-    protected int getLoadEndViewId() {
-        return R.id.load_more_load_end_view;
+    /* access modifiers changed from: protected */
+    @Override // com.chad.library.adapter.base.loadmore.LoadMoreView
+    public int getLoadingViewId() {
+        return 2131296612;
     }
 }

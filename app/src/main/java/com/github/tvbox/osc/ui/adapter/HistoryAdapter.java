@@ -3,7 +3,6 @@ package com.github.tvbox.osc.ui.adapter;
 import android.text.TextUtils;
 import android.widget.ImageView;
 import android.widget.TextView;
-
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.chad.library.adapter.base.BaseViewHolder;
 import com.github.tvbox.osc.R;
@@ -13,72 +12,32 @@ import com.github.tvbox.osc.picasso.RoundTransformation;
 import com.github.tvbox.osc.util.DefaultConfig;
 import com.github.tvbox.osc.util.MD5;
 import com.squareup.picasso.Picasso;
-
+import com.squareup.picasso.RequestCreator;
 import java.util.ArrayList;
-
 import me.jessyan.autosize.utils.AutoSizeUtils;
 
-/**
- * @author pj567
- * @date :2020/12/21
- * @description:
- */
 public class HistoryAdapter extends BaseQuickAdapter<VodInfo, BaseViewHolder> {
     public HistoryAdapter() {
-        super(R.layout.item_grid, new ArrayList<>());
+        super(R.layout.item_grid, new ArrayList());
     }
 
-    @Override
-    protected void convert(BaseViewHolder helper, VodInfo item) {
-        TextView tvYear = helper.getView(R.id.tvYear);
-        /*if (item.year <= 0) {
-            tvYear.setVisibility(View.GONE);
+    /* access modifiers changed from: protected */
+    public void convert(BaseViewHolder baseViewHolder, VodInfo vodInfo) {
+        ((TextView) baseViewHolder.getView(R.id.tvYear)).setText(ApiConfig.get().getSource(vodInfo.sourceKey).getName());
+        baseViewHolder.setVisible(R.id.tvLang, false);
+        baseViewHolder.setVisible(R.id.tvArea, false);
+        if (vodInfo.note == null || vodInfo.note.isEmpty()) {
+            baseViewHolder.setVisible(R.id.tvNote, false);
         } else {
-            tvYear.setText(String.valueOf(item.year));
-            tvYear.setVisibility(View.VISIBLE);
-        }*/
-        tvYear.setText(ApiConfig.get().getSource(item.sourceKey).getName());
-        /*TextView tvLang = helper.getView(R.id.tvLang);
-        if (TextUtils.isEmpty(item.lang)) {
-            tvLang.setVisibility(View.GONE);
-        } else {
-            tvLang.setText(item.lang);
-            tvLang.setVisibility(View.VISIBLE);
+            baseViewHolder.setText(R.id.tvNote, vodInfo.note);
         }
-        TextView tvArea = helper.getView(R.id.tvArea);
-        if (TextUtils.isEmpty(item.area)) {
-            tvArea.setVisibility(View.GONE);
-        } else {
-            tvArea.setText(item.area);
-            tvArea.setVisibility(View.VISIBLE);
+        baseViewHolder.setText(R.id.tvName, vodInfo.name);
+        ImageView imageView = (ImageView) baseViewHolder.getView(R.id.ivThumb);
+        if (!TextUtils.isEmpty(vodInfo.pic)) {
+            RequestCreator load = Picasso.get().load(DefaultConfig.checkReplaceProxy(vodInfo.pic));
+            load.transform(new RoundTransformation(MD5.string2MD5(vodInfo.pic + vodInfo.name)).centerCorp(true).override(AutoSizeUtils.mm2px(this.mContext, 300.0f), AutoSizeUtils.mm2px(this.mContext, 400.0f)).roundRadius(AutoSizeUtils.mm2px(this.mContext, 15.0f), 0)).placeholder(R.drawable.img_loading_placeholder).error(R.drawable.img_loading_placeholder).into(imageView);
+            return;
         }
-
-        TextView tvNote = helper.getView(R.id.tvNote);
-        if (TextUtils.isEmpty(item.note)) {
-            tvNote.setVisibility(View.GONE);
-        } else {
-            tvNote.setText(item.note);
-            tvNote.setVisibility(View.VISIBLE);
-        }*/
-        helper.setVisible(R.id.tvLang, false);
-        helper.setVisible(R.id.tvArea, false);
-        helper.setVisible(R.id.tvNote, false);
-        helper.setText(R.id.tvName, item.name);
-        // helper.setText(R.id.tvActor, item.actor);
-        ImageView ivThumb = helper.getView(R.id.ivThumb);
-        //由于部分电视机使用glide报错
-        if (!TextUtils.isEmpty(item.pic)) {
-            Picasso.get()
-                    .load(DefaultConfig.checkReplaceProxy(item.pic))
-                    .transform(new RoundTransformation(MD5.string2MD5(item.pic + item.name))
-                            .centerCorp(true)
-                            .override(AutoSizeUtils.mm2px(mContext, 300), AutoSizeUtils.mm2px(mContext, 400))
-                            .roundRadius(AutoSizeUtils.mm2px(mContext, 10), RoundTransformation.RoundType.ALL))
-                    .placeholder(R.drawable.img_loading_placeholder)
-                    .error(R.drawable.img_loading_placeholder)
-                    .into(ivThumb);
-        } else {
-            ivThumb.setImageResource(R.drawable.img_loading_placeholder);
-        }
+        imageView.setImageResource(R.drawable.img_loading_placeholder);
     }
 }

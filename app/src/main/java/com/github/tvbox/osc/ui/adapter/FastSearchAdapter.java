@@ -8,35 +8,19 @@ import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.bean.Movie;
 import com.github.tvbox.osc.picasso.RoundTransformation;
-import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.MD5;
-import com.orhanobut.hawk.Hawk;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.RequestCreator;
 import java.util.ArrayList;
 import me.jessyan.autosize.utils.AutoSizeUtils;
 
-public class SearchAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
-    /* JADX INFO: super call moved to the top of the method (can break code semantics) */
-    public SearchAdapter() {
-        super(((Integer) Hawk.get(HawkConfig.SEARCH_VIEW, 0)).intValue() == 0 ? R.layout.item_search_lite : R.layout.item_search, new ArrayList());
+public class FastSearchAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
+    public FastSearchAdapter() {
+        super(R.layout.item_search, new ArrayList());
     }
 
     /* access modifiers changed from: protected */
     public void convert(BaseViewHolder baseViewHolder, Movie.Video video) {
-        if (((Integer) Hawk.get(HawkConfig.SEARCH_VIEW, 0)).intValue() == 0) {
-            Object[] objArr = new Object[4];
-            objArr[0] = ApiConfig.get().getSource(video.sourceKey).getName();
-            objArr[1] = video.name;
-            String str = "";
-            objArr[2] = video.type == null ? str : video.type;
-            if (video.note != null) {
-                str = video.note;
-            }
-            objArr[3] = str;
-            baseViewHolder.setText(R.id.tvName, String.format("%s  %s %s %s", objArr));
-            return;
-        }
         baseViewHolder.setText(R.id.tvName, video.name);
         baseViewHolder.setText(R.id.tvSite, ApiConfig.get().getSource(video.sourceKey).getName());
         baseViewHolder.setVisible(R.id.tvNote, video.note != null && !video.note.isEmpty());

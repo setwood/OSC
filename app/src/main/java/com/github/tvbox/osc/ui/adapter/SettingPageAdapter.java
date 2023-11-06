@@ -1,55 +1,49 @@
 package com.github.tvbox.osc.ui.adapter;
 
 import android.view.ViewGroup;
-
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentPagerAdapter;
-
 import com.github.tvbox.osc.base.BaseLazyFragment;
-
 import java.util.List;
-
-/**
- * @user acer
- * @date 2018/12/4
- */
 
 public class SettingPageAdapter extends FragmentPagerAdapter {
     public FragmentManager fragmentManager;
     public List<BaseLazyFragment> list;
 
-    public SettingPageAdapter(FragmentManager fm) {
-        super(fm);
+    public SettingPageAdapter(FragmentManager fragmentManager2) {
+        super(fragmentManager2);
     }
 
-    public SettingPageAdapter(FragmentManager fm, List<BaseLazyFragment> list) {
-        super(fm);
-        this.fragmentManager = fm;
-        this.list = list;
+    public SettingPageAdapter(FragmentManager fragmentManager2, List<BaseLazyFragment> list2) {
+        super(fragmentManager2);
+        this.fragmentManager = fragmentManager2;
+        this.list = list2;
     }
 
-    @Override
-    public Fragment getItem(int position) {
-        return list.get(position);
+    @Override // androidx.fragment.app.FragmentPagerAdapter
+    public Fragment getItem(int i) {
+        return this.list.get(i);
     }
 
-    @Override
+    @Override // androidx.viewpager.widget.PagerAdapter
     public int getCount() {
-        return list != null ? list.size() : 0;
+        List<BaseLazyFragment> list2 = this.list;
+        if (list2 != null) {
+            return list2.size();
+        }
+        return 0;
     }
 
-    @Override
-    public Fragment instantiateItem(ViewGroup container, int position) {
-        Fragment fragment = (Fragment) super.instantiateItem(container, position);
-        fragmentManager.beginTransaction().show(fragment).commitAllowingStateLoss();
+    @Override // androidx.viewpager.widget.PagerAdapter, androidx.fragment.app.FragmentPagerAdapter
+    public Fragment instantiateItem(ViewGroup viewGroup, int i) {
+        Fragment fragment = (Fragment) super.instantiateItem(viewGroup, i);
+        this.fragmentManager.beginTransaction().show(fragment).commitAllowingStateLoss();
         return fragment;
     }
 
-    @Override
-    public void destroyItem(ViewGroup container, int position, Object object) {
-        // super.destroyItem(container, position, object);
-        Fragment fragment = list.get(position);
-        fragmentManager.beginTransaction().hide(fragment).commitAllowingStateLoss();
+    @Override // androidx.viewpager.widget.PagerAdapter, androidx.fragment.app.FragmentPagerAdapter
+    public void destroyItem(ViewGroup viewGroup, int i, Object obj) {
+        this.fragmentManager.beginTransaction().hide(this.list.get(i)).commitAllowingStateLoss();
     }
 }

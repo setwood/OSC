@@ -1,11 +1,9 @@
 package com.github.tvbox.osc.ui.activity;
 
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.view.animation.BounceInterpolator;
 import android.widget.TextView;
-
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.base.BaseActivity;
@@ -16,160 +14,156 @@ import com.github.tvbox.osc.ui.adapter.HistoryAdapter;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
-
+import java.util.ArrayList;
+import java.util.List;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/**
- * @author pj567
- * @date :2021/1/7
- * @description:
- */
 public class HistoryActivity extends BaseActivity {
+    private boolean delMode = false;
+    private HistoryAdapter historyAdapter;
+    private TvRecyclerView mGridView;
     private TextView tvDel;
     private TextView tvDelTip;
-    private TvRecyclerView mGridView;
-    private HistoryAdapter historyAdapter;
-    private boolean delMode = false;
 
-    @Override
-    protected int getLayoutResID() {
+    /* access modifiers changed from: protected */
+    @Override // com.github.tvbox.osc.base.BaseActivity
+    public int getLayoutResID() {
         return R.layout.activity_history;
     }
 
-    @Override
-    protected void init() {
+    /* access modifiers changed from: protected */
+    @Override // com.github.tvbox.osc.base.BaseActivity
+    public void init() {
         initView();
         initData();
     }
 
+    /* access modifiers changed from: private */
+    /* access modifiers changed from: public */
     private void toggleDelMode() {
-        delMode = !delMode;
-        tvDelTip.setVisibility(delMode ? View.VISIBLE : View.GONE);
-        tvDel.setTextColor(delMode ? getResources().getColor(R.color.color_FF0057) : Color.WHITE);
+        boolean z = !this.delMode;
+        this.delMode = z;
+        this.tvDelTip.setVisibility(z ? 0 : 8);
+        this.tvDel.setTextColor(this.delMode ? getResources().getColor(R.color.color_theme) : -1);
     }
 
     private void initView() {
         EventBus.getDefault().register(this);
-        tvDel = findViewById(R.id.tvDel);
-        tvDelTip = findViewById(R.id.tvDelTip);
-        mGridView = findViewById(R.id.mGridView);
-        mGridView.setHasFixedSize(true);
-        mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 5 : 6));
-        historyAdapter = new HistoryAdapter();
-        mGridView.setAdapter(historyAdapter);
-        tvDel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                toggleDelMode();
+        this.tvDel = (TextView) findViewById(R.id.tvDel);
+        this.tvDelTip = (TextView) findViewById(R.id.tvDelTip);
+        TvRecyclerView tvRecyclerView = (TvRecyclerView) findViewById(R.id.mGridView);
+        this.mGridView = tvRecyclerView;
+        tvRecyclerView.setHasFixedSize(true);
+        this.mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 5 : 6));
+        HistoryAdapter historyAdapter2 = new HistoryAdapter();
+        this.historyAdapter = historyAdapter2;
+        this.mGridView.setAdapter(historyAdapter2);
+        this.tvDel.setOnClickListener(new View.OnClickListener() {
+            /* class com.github.tvbox.osc.ui.activity.HistoryActivity.AnonymousClass1 */
+
+            public void onClick(View view) {
+                HistoryActivity.this.toggleDelMode();
             }
         });
-        mGridView.setOnInBorderKeyEventListener(new TvRecyclerView.OnInBorderKeyEventListener() {
-            @Override
-            public boolean onInBorderKeyEvent(int direction, View focused) {
-                if (direction == View.FOCUS_UP) {
-                    tvDel.setFocusable(true);
-                    tvDel.requestFocus();
+        this.mGridView.setOnInBorderKeyEventListener(new TvRecyclerView.OnInBorderKeyEventListener() {
+            /* class com.github.tvbox.osc.ui.activity.HistoryActivity.AnonymousClass2 */
+
+            @Override // com.owen.tvrecyclerview.widget.TvRecyclerView.OnInBorderKeyEventListener
+            public boolean onInBorderKeyEvent(int i, View view) {
+                if (i != 33) {
+                    return false;
                 }
+                HistoryActivity.this.tvDel.setFocusable(true);
+                HistoryActivity.this.tvDel.requestFocus();
                 return false;
             }
         });
-        mGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
-            @Override
-            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+        this.mGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
+            /* class com.github.tvbox.osc.ui.activity.HistoryActivity.AnonymousClass3 */
+
+            @Override // com.owen.tvrecyclerview.widget.TvRecyclerView.OnItemListener
+            public void onItemClick(TvRecyclerView tvRecyclerView, View view, int i) {
             }
 
-            @Override
-            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.05f).scaleY(1.05f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+            @Override // com.owen.tvrecyclerview.widget.TvRecyclerView.OnItemListener
+            public void onItemPreSelected(TvRecyclerView tvRecyclerView, View view, int i) {
+                view.animate().scaleX(1.0f).scaleY(1.0f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
             }
 
-            @Override
-            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
-
+            @Override // com.owen.tvrecyclerview.widget.TvRecyclerView.OnItemListener
+            public void onItemSelected(TvRecyclerView tvRecyclerView, View view, int i) {
+                view.animate().scaleX(1.05f).scaleY(1.05f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
             }
         });
-        historyAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
-            @Override
-            public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
+        this.historyAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
+            /* class com.github.tvbox.osc.ui.activity.HistoryActivity.AnonymousClass4 */
+
+            @Override // com.chad.library.adapter.base.BaseQuickAdapter.OnItemClickListener
+            public void onItemClick(BaseQuickAdapter baseQuickAdapter, View view, int i) {
                 FastClickCheckUtil.check(view);
-                VodInfo vodInfo = historyAdapter.getData().get(position);
-
-                //HistoryDialog historyDialog = new HistoryDialog().build(mContext, vodInfo).setOnHistoryListener(new HistoryDialog.OnHistoryListener() {
-                //    @Override
-                //    public void onLook(VodInfo vodInfo) {
-                //        if (vodInfo != null) {
-                //            Bundle bundle = new Bundle();
-                //            bundle.putInt("id", vodInfo.id);
-                //            bundle.putString("sourceKey", vodInfo.sourceKey);
-                //            jumpActivity(DetailActivity.class, bundle);
-                //        }
-                //    }
-
-                //    @Override
-                //    public void onDelete(VodInfo vodInfo) {
-                //        if (vodInfo != null) {
-                //               for (int i = 0; i < historyAdapter.getData().size(); i++) {
-                //                    if (vodInfo.id == historyAdapter.getData().get(i).id) {
-                //                        historyAdapter.remove(i);
-                //                        break;
-                //                    }
-                //                }
-                //                RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
-                //        }
-                //    }
-                //});
-                //historyDialog.show();
-
-                if (vodInfo != null) {
-                    if (delMode) {
-                        historyAdapter.remove(position);
-                        RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
-                    } else {
-                        Bundle bundle = new Bundle();
-                        bundle.putString("id", vodInfo.id);
-                        bundle.putString("sourceKey", vodInfo.sourceKey);
-                        jumpActivity(DetailActivity.class, bundle);
-                    }
+                VodInfo vodInfo = (VodInfo) HistoryActivity.this.historyAdapter.getData().get(i);
+                if (vodInfo == null) {
+                    return;
                 }
+                if (HistoryActivity.this.delMode) {
+                    HistoryActivity.this.historyAdapter.remove(i);
+                    RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
+                    return;
+                }
+                Bundle bundle = new Bundle();
+                bundle.putString("id", vodInfo.id);
+                bundle.putString("sourceKey", vodInfo.sourceKey);
+                HistoryActivity.this.jumpActivity(DetailActivity.class, bundle);
+            }
+        });
+        this.historyAdapter.setOnItemLongClickListener(new BaseQuickAdapter.OnItemLongClickListener() {
+            /* class com.github.tvbox.osc.ui.activity.HistoryActivity.AnonymousClass5 */
+
+            @Override // com.chad.library.adapter.base.BaseQuickAdapter.OnItemLongClickListener
+            public boolean onItemLongClick(BaseQuickAdapter baseQuickAdapter, View view, int i) {
+                FastClickCheckUtil.check(view);
+                VodInfo vodInfo = (VodInfo) HistoryActivity.this.historyAdapter.getData().get(i);
+                HistoryActivity.this.historyAdapter.remove(i);
+                RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
+                return true;
             }
         });
     }
 
     private void initData() {
         List<VodInfo> allVodRecord = RoomDataManger.getAllVodRecord(100);
-        List<VodInfo> vodInfoList = new ArrayList<>();
+        ArrayList arrayList = new ArrayList();
         for (VodInfo vodInfo : allVodRecord) {
-            vodInfoList.add(vodInfo);
+            if (vodInfo.playNote != null && !vodInfo.playNote.isEmpty()) {
+                vodInfo.note = "上次看到" + vodInfo.playNote;
+            }
+            arrayList.add(vodInfo);
         }
-        historyAdapter.setNewData(vodInfoList);
+        this.historyAdapter.setNewData(arrayList);
     }
 
-
     @Subscribe(threadMode = ThreadMode.MAIN)
-    public void refresh(RefreshEvent event) {
-        if (event.type == RefreshEvent.TYPE_HISTORY_REFRESH) {
+    public void refresh(RefreshEvent refreshEvent) {
+        if (refreshEvent.type == 1) {
             initData();
         }
     }
 
-    @Override
-    protected void onDestroy() {
+    /* access modifiers changed from: protected */
+    @Override // androidx.appcompat.app.AppCompatActivity, androidx.fragment.app.FragmentActivity, com.github.tvbox.osc.base.BaseActivity
+    public void onDestroy() {
         super.onDestroy();
         EventBus.getDefault().unregister(this);
     }
 
-    @Override
+    @Override // androidx.activity.ComponentActivity
     public void onBackPressed() {
-        if (delMode) {
+        if (this.delMode) {
             toggleDelMode();
-            return;
+        } else {
+            super.onBackPressed();
         }
-        super.onBackPressed();
     }
 }

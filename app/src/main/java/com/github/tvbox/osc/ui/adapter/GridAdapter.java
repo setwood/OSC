@@ -1,10 +1,8 @@
 package com.github.tvbox.osc.ui.adapter;
 
 import android.text.TextUtils;
-import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
-
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.chad.library.adapter.base.BaseViewHolder;
 import com.github.tvbox.osc.R;
@@ -13,68 +11,57 @@ import com.github.tvbox.osc.picasso.RoundTransformation;
 import com.github.tvbox.osc.util.DefaultConfig;
 import com.github.tvbox.osc.util.MD5;
 import com.squareup.picasso.Picasso;
-
+import com.squareup.picasso.RequestCreator;
 import java.util.ArrayList;
-
 import me.jessyan.autosize.utils.AutoSizeUtils;
 
-/**
- * @author pj567
- * @date :2020/12/21
- * @description:
- */
 public class GridAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
-    public GridAdapter() {
-        super(R.layout.item_grid, new ArrayList<>());
+    private boolean mShowList;
+
+    /* JADX INFO: super call moved to the top of the method (can break code semantics) */
+    public GridAdapter(boolean z) {
+        super(z ? R.layout.item_list : R.layout.item_grid, new ArrayList());
+        this.mShowList = false;
+        this.mShowList = z;
     }
 
-    @Override
-    protected void convert(BaseViewHolder helper, Movie.Video item) {
-        TextView tvYear = helper.getView(R.id.tvYear);
-        if (item.year <= 0) {
-            tvYear.setVisibility(View.GONE);
-        } else {
-            tvYear.setText(String.valueOf(item.year));
-            tvYear.setVisibility(View.VISIBLE);
+    /* access modifiers changed from: protected */
+    public void convert(BaseViewHolder baseViewHolder, Movie.Video video) {
+        if (this.mShowList) {
+            baseViewHolder.setText(R.id.tvNote, video.note);
+            baseViewHolder.setText(R.id.tvName, video.name);
+            ImageView imageView = (ImageView) baseViewHolder.getView(R.id.ivThumb);
+            if (!TextUtils.isEmpty(video.pic)) {
+                RequestCreator load = Picasso.get().load(DefaultConfig.checkReplaceProxy(video.pic));
+                load.transform(new RoundTransformation(MD5.string2MD5(video.pic + "position=" + baseViewHolder.getLayoutPosition())).centerCorp(true).override(AutoSizeUtils.mm2px(this.mContext, 300.0f), AutoSizeUtils.mm2px(this.mContext, 400.0f)).roundRadius(AutoSizeUtils.mm2px(this.mContext, 15.0f), 0)).placeholder(R.drawable.img_loading_placeholder).error(R.drawable.img_loading_placeholder).into(imageView);
+                return;
+            }
+            imageView.setImageResource(R.drawable.img_loading_placeholder);
+            return;
         }
-        TextView tvLang = helper.getView(R.id.tvLang);
-        tvLang.setVisibility(View.GONE);
-        /*if (TextUtils.isEmpty(item.lang)) {
-            tvLang.setVisibility(View.GONE);
+        TextView textView = (TextView) baseViewHolder.getView(R.id.tvYear);
+        if (video.year <= 0) {
+            textView.setVisibility(8);
         } else {
-            tvLang.setText(item.lang);
-            tvLang.setVisibility(View.VISIBLE);
-        }*/
-        TextView tvArea = helper.getView(R.id.tvArea);
-        tvArea.setVisibility(View.GONE);
-        /*if (TextUtils.isEmpty(item.area)) {
-            tvArea.setVisibility(View.GONE);
-        } else {
-            tvArea.setText(item.area);
-            tvArea.setVisibility(View.VISIBLE);
-        }*/
-        if (TextUtils.isEmpty(item.note)) {
-            helper.setVisible(R.id.tvNote, false);
-        } else {
-            helper.setVisible(R.id.tvNote, true);
-            helper.setText(R.id.tvNote, item.note);
+            textView.setText(String.valueOf(video.year));
+            textView.setVisibility(0);
         }
-        helper.setText(R.id.tvName, item.name);
-        helper.setText(R.id.tvActor, item.actor);
-        ImageView ivThumb = helper.getView(R.id.ivThumb);
-        //由于部分电视机使用glide报错
-        if (!TextUtils.isEmpty(item.pic)) {
-            Picasso.get()
-                    .load(DefaultConfig.checkReplaceProxy(item.pic))
-                    .transform(new RoundTransformation(MD5.string2MD5(item.pic + "position=" + helper.getLayoutPosition()))
-                            .centerCorp(true)
-                            .override(AutoSizeUtils.mm2px(mContext, 300), AutoSizeUtils.mm2px(mContext, 400))
-                            .roundRadius(AutoSizeUtils.mm2px(mContext, 10), RoundTransformation.RoundType.ALL))
-                    .placeholder(R.drawable.img_loading_placeholder)
-                    .error(R.drawable.img_loading_placeholder)
-                    .into(ivThumb);
+        ((TextView) baseViewHolder.getView(R.id.tvLang)).setVisibility(8);
+        ((TextView) baseViewHolder.getView(R.id.tvArea)).setVisibility(8);
+        if (TextUtils.isEmpty(video.note)) {
+            baseViewHolder.setVisible(R.id.tvNote, false);
         } else {
-            ivThumb.setImageResource(R.drawable.img_loading_placeholder);
+            baseViewHolder.setVisible(R.id.tvNote, true);
+            baseViewHolder.setText(R.id.tvNote, video.note);
         }
+        baseViewHolder.setText(R.id.tvName, video.name);
+        baseViewHolder.setText(R.id.tvActor, video.actor);
+        ImageView imageView2 = (ImageView) baseViewHolder.getView(R.id.ivThumb);
+        if (!TextUtils.isEmpty(video.pic)) {
+            RequestCreator load2 = Picasso.get().load(DefaultConfig.checkReplaceProxy(video.pic));
+            load2.transform(new RoundTransformation(MD5.string2MD5(video.pic + "position=" + baseViewHolder.getLayoutPosition())).centerCorp(true).override(AutoSizeUtils.mm2px(this.mContext, 300.0f), AutoSizeUtils.mm2px(this.mContext, 400.0f)).roundRadius(AutoSizeUtils.mm2px(this.mContext, 15.0f), 0)).placeholder(R.drawable.img_loading_placeholder).error(R.drawable.img_loading_placeholder).into(imageView2);
+            return;
+        }
+        imageView2.setImageResource(R.drawable.img_loading_placeholder);
     }
 }

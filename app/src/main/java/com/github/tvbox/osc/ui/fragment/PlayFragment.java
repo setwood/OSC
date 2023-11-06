@@ -1,14 +1,8 @@
-package com.github.tvbox.osc.ui.activity;
+package com.github.tvbox.osc.ui.fragment;
 
 import android.app.Activity;
-import android.app.PendingIntent;
-import android.app.PictureInPictureParams;
-import android.app.RemoteAction;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
@@ -16,7 +10,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
-import android.util.Rational;
 import android.view.KeyEvent;
 import android.view.ViewGroup;
 import android.webkit.ConsoleMessage;
@@ -43,7 +36,7 @@ import androidx.recyclerview.widget.DiffUtil;
 import com.github.catvod.crawler.Spider;
 import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.api.ApiConfig;
-import com.github.tvbox.osc.base.BaseActivity;
+import com.github.tvbox.osc.base.BaseLazyFragment;
 import com.github.tvbox.osc.bean.ParseBean;
 import com.github.tvbox.osc.bean.SourceBean;
 import com.github.tvbox.osc.bean.Subtitle;
@@ -58,6 +51,7 @@ import com.github.tvbox.osc.player.controller.VodController;
 import com.github.tvbox.osc.player.thirdparty.Kodi;
 import com.github.tvbox.osc.player.thirdparty.MXPlayer;
 import com.github.tvbox.osc.player.thirdparty.ReexPlayer;
+import com.github.tvbox.osc.ui.activity.DetailActivity;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.dialog.SearchSubtitleDialog;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
@@ -76,12 +70,8 @@ import com.google.android.exoplayer2.audio.SilenceSkippingAudioProcessor;
 import com.google.android.exoplayer2.source.rtsp.RtspHeaders;
 import com.google.android.exoplayer2.source.rtsp.SessionDescription;
 import com.google.common.net.HttpHeaders;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.lzy.okgo.OkGo;
 import com.lzy.okgo.callback.AbsCallback;
-import com.lzy.okgo.cookie.SerializableCookie;
 import com.lzy.okgo.request.GetRequest;
 import com.obsez.android.lib.filechooser.ChooserDialog;
 import com.orhanobut.hawk.Hawk;
@@ -89,7 +79,7 @@ import com.umeng.analytics.pro.an;
 import fi.iki.elonen.NanoHTTPD;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.util.ArrayList;
+import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -101,6 +91,8 @@ import me.jessyan.autosize.AutoSize;
 import okhttp3.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.xwalk.core.XWalkJavascriptResult;
@@ -115,13 +107,9 @@ import tv.danmaku.ijk.media.player.IjkTimedText;
 import xyz.doikki.videoplayer.player.AbstractPlayer;
 import xyz.doikki.videoplayer.player.ProgressManager;
 
-public class PlayActivity extends BaseActivity {
-    private static final int PIP_BOARDCAST_ACTION_NEXT = 2;
-    private static final int PIP_BOARDCAST_ACTION_PLAYPAUSE = 1;
-    private static final int PIP_BOARDCAST_ACTION_PREV = 0;
-    boolean PiPON = ((Boolean) Hawk.get(HawkConfig.PIC_IN_PIC, false)).booleanValue();
+public class PlayFragment extends BaseLazyFragment {
     private int autoRetryCount = 0;
-    private boolean extPlay = false;
+    public boolean extPlay;
     private boolean loadFound = false;
     private final Map<String, Boolean> loadedUrls = new HashMap();
     private VodController mController;
@@ -131,15 +119,13 @@ public class PlayActivity extends BaseActivity {
     private ProgressBar mPlayLoading;
     private SysWebClient mSysWebClient;
     private WebView mSysWebView;
-    private MyVideoView mVideoView;
+    public MyVideoView mVideoView;
     private VodInfo mVodInfo;
     private JSONObject mVodPlayerCfg;
     private XWalkWebClient mX5WebClient;
     private XWalkView mXwalkWebView;
-    private boolean onStopCalled;
     private String parseFlag;
     ExecutorService parseThreadPool;
-    private BroadcastReceiver pipActionReceiver;
     private String playSubtitle;
     private String progressKey;
     private SourceBean sourceBean;
@@ -151,29 +137,43 @@ public class PlayActivity extends BaseActivity {
     private String webUrl;
     private String webUserAgent;
 
+    private void initData() {
+    }
+
     /* access modifiers changed from: protected */
-    @Override // com.github.tvbox.osc.base.BaseActivity
+    @Override // com.github.tvbox.osc.base.BaseLazyFragment
     public int getLayoutResID() {
         return R.layout.activity_play;
     }
 
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void refresh(RefreshEvent refreshEvent) {
+        if (refreshEvent.type == 12) {
+            this.mController.mSubtitleView.setTextSize((float) ((Integer) refreshEvent.obj).intValue());
+        }
+    }
+
     /* access modifiers changed from: protected */
-    @Override // com.github.tvbox.osc.base.BaseActivity
+    @Override // com.github.tvbox.osc.base.BaseLazyFragment
     public void init() {
         initView();
         initViewModel();
         initData();
     }
 
+    public VodController getVodController() {
+        return this.mController;
+    }
+
     private void initView() {
-        hideSystemUI(false);
+        EventBus.getDefault().register(this);
         this.mHandler = new Handler(new Handler.Callback() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass1 */
+            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass1 */
 
             public boolean handleMessage(Message message) {
                 if (message.what == 100) {
-                    PlayActivity.this.stopParse();
-                    PlayActivity.this.errorWithRetry("嗅探错误", false);
+                    PlayFragment.this.stopParse();
+                    PlayFragment.this.errorWithRetry("嗅探错误", false);
                 }
                 return false;
             }
@@ -182,13 +182,13 @@ public class PlayActivity extends BaseActivity {
         this.mPlayLoadTip = (TextView) findViewById(R.id.play_load_tip);
         this.mPlayLoading = (ProgressBar) findViewById(R.id.play_loading);
         this.mPlayLoadErr = (ImageView) findViewById(R.id.play_load_error);
-        VodController vodController = new VodController(this);
+        VodController vodController = new VodController(requireContext());
         this.mController = vodController;
         vodController.setCanChangePosition(true);
         this.mController.setEnableInNormal(true);
         this.mController.setGestureEnabled(true);
         this.mVideoView.setProgressManager(new ProgressManager() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass2 */
+            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass2 */
 
             @Override // xyz.doikki.videoplayer.player.ProgressManager
             public void saveProgress(String str, long j) {
@@ -199,7 +199,7 @@ public class PlayActivity extends BaseActivity {
             public long getSavedProgress(String str) {
                 int i;
                 try {
-                    i = PlayActivity.this.mVodPlayerCfg.getInt("st");
+                    i = PlayFragment.this.mVodPlayerCfg.getInt("st");
                 } catch (JSONException e) {
                     e.printStackTrace();
                     i = 0;
@@ -213,16 +213,16 @@ public class PlayActivity extends BaseActivity {
             }
         });
         this.mController.setListener(new VodController.VodControlListener() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass3 */
+            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass3 */
 
             @Override // com.github.tvbox.osc.player.controller.VodController.VodControlListener
             public void playNext(boolean z) {
-                if (PlayActivity.this.mVodInfo.reverseSort) {
-                    PlayActivity.this.playPrevious();
+                if (PlayFragment.this.mVodInfo.reverseSort) {
+                    PlayFragment.this.playPrevious();
                     return;
                 }
-                String str = PlayActivity.this.progressKey;
-                PlayActivity.this.playNext(z);
+                String str = PlayFragment.this.progressKey;
+                PlayFragment.this.playNext(z);
                 if (z && str != null) {
                     CacheManager.delete(MD5.string2MD5(str), 0);
                 }
@@ -230,40 +230,40 @@ public class PlayActivity extends BaseActivity {
 
             @Override // com.github.tvbox.osc.player.controller.VodController.VodControlListener
             public void playPre() {
-                if (PlayActivity.this.mVodInfo.reverseSort) {
-                    PlayActivity.this.playNext(false);
+                if (PlayFragment.this.mVodInfo.reverseSort) {
+                    PlayFragment.this.playNext(false);
                 } else {
-                    PlayActivity.this.playPrevious();
+                    PlayFragment.this.playPrevious();
                 }
             }
 
             @Override // com.github.tvbox.osc.player.controller.VodController.VodControlListener
             public void changeParse(ParseBean parseBean) {
-                PlayActivity.this.autoRetryCount = 0;
-                PlayActivity.this.doParse(parseBean);
+                PlayFragment.this.autoRetryCount = 0;
+                PlayFragment.this.doParse(parseBean);
             }
 
             @Override // com.github.tvbox.osc.player.controller.VodController.VodControlListener
             public void updatePlayerCfg() {
-                PlayActivity.this.mVodInfo.playerCfg = PlayActivity.this.mVodPlayerCfg.toString();
-                EventBus.getDefault().post(new RefreshEvent(0, PlayActivity.this.mVodPlayerCfg));
+                PlayFragment.this.mVodInfo.playerCfg = PlayFragment.this.mVodPlayerCfg.toString();
+                EventBus.getDefault().post(new RefreshEvent(0, PlayFragment.this.mVodPlayerCfg));
             }
 
             @Override // com.github.tvbox.osc.player.controller.VodController.VodControlListener
             public void replay(boolean z) {
-                PlayActivity.this.autoRetryCount = 0;
-                PlayActivity.this.play(z);
+                PlayFragment.this.autoRetryCount = 0;
+                PlayFragment.this.play(z);
             }
 
             @Override // com.github.tvbox.osc.player.controller.VodController.VodControlListener
             public void errReplay() {
-                PlayActivity.this.errorWithRetry("视频播放出错", false);
+                PlayFragment.this.errorWithRetry("视频播放出错", false);
             }
 
             @Override // com.github.tvbox.osc.player.controller.VodController.VodControlListener
             public void selectSubtitle() {
                 try {
-                    PlayActivity.this.selectMySubtitle();
+                    PlayFragment.this.selectMySubtitle();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -271,17 +271,17 @@ public class PlayActivity extends BaseActivity {
 
             @Override // com.github.tvbox.osc.player.controller.VodController.VodControlListener
             public void selectAudioTrack() {
-                PlayActivity.this.selectMyAudioTrack();
+                PlayFragment.this.selectMyAudioTrack();
             }
 
             @Override // com.github.tvbox.osc.player.controller.VodController.VodControlListener
             public void openVideo() {
-                PlayActivity.this.openMyVideo();
+                PlayFragment.this.openMyVideo();
             }
 
             @Override // com.github.tvbox.osc.player.controller.VodController.VodControlListener
             public void prepared() {
-                PlayActivity.this.initSubtitleView();
+                PlayFragment.this.initSubtitleView();
             }
         });
         this.mVideoView.setVideoController(this.mController);
@@ -300,46 +300,46 @@ public class PlayActivity extends BaseActivity {
     public void selectMySubtitle() throws Exception {
         SubtitleDialog subtitleDialog = new SubtitleDialog(this.mContext);
         subtitleDialog.setSubtitleViewListener(new SubtitleDialog.SubtitleViewListener() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass4 */
+            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass4 */
 
             @Override // com.github.tvbox.osc.ui.dialog.SubtitleDialog.SubtitleViewListener
             public void setTextSize(int i) {
-                PlayActivity.this.mController.mSubtitleView.setTextSize((float) i);
+                PlayFragment.this.mController.mSubtitleView.setTextSize((float) i);
             }
 
             @Override // com.github.tvbox.osc.ui.dialog.SubtitleDialog.SubtitleViewListener
             public void setSubtitleDelay(int i) {
-                PlayActivity.this.mController.mSubtitleView.setSubtitleDelay(Integer.valueOf(i));
+                PlayFragment.this.mController.mSubtitleView.setSubtitleDelay(Integer.valueOf(i));
             }
 
             @Override // com.github.tvbox.osc.ui.dialog.SubtitleDialog.SubtitleViewListener
             public void selectInternalSubtitle() {
-                PlayActivity.this.selectMyInternalSubtitle();
+                PlayFragment.this.selectMyInternalSubtitle();
             }
 
             @Override // com.github.tvbox.osc.ui.dialog.SubtitleDialog.SubtitleViewListener
             public void setTextStyle(int i) {
-                PlayActivity.this.setSubtitleViewTextStyle(i);
+                PlayFragment.this.setSubtitleViewTextStyle(i);
             }
         });
         subtitleDialog.setSearchSubtitleListener(new SubtitleDialog.SearchSubtitleListener() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass5 */
+            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass5 */
 
             @Override // com.github.tvbox.osc.ui.dialog.SubtitleDialog.SearchSubtitleListener
             public void openSearchSubtitleDialog() {
-                final SearchSubtitleDialog searchSubtitleDialog = new SearchSubtitleDialog(PlayActivity.this.mContext);
+                final SearchSubtitleDialog searchSubtitleDialog = new SearchSubtitleDialog(PlayFragment.this.mContext);
                 searchSubtitleDialog.setSubtitleLoader(new SearchSubtitleDialog.SubtitleLoader() {
-                    /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass5.AnonymousClass1 */
+                    /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass5.AnonymousClass1 */
 
                     @Override // com.github.tvbox.osc.ui.dialog.SearchSubtitleDialog.SubtitleLoader
                     public void loadSubtitle(final Subtitle subtitle) {
-                        PlayActivity.this.runOnUiThread(new Runnable() {
-                            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass5.AnonymousClass1.AnonymousClass1 */
+                        PlayFragment.this.requireActivity().runOnUiThread(new Runnable() {
+                            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass5.AnonymousClass1.AnonymousClass1 */
 
                             public void run() {
                                 String url = subtitle.getUrl();
                                 LOG.i("Remote Subtitle Url: " + url);
-                                PlayActivity.this.setSubtitle(url);
+                                PlayFragment.this.setSubtitle(url);
                                 if (searchSubtitleDialog != null) {
                                     searchSubtitleDialog.dismiss();
                                 }
@@ -347,26 +347,26 @@ public class PlayActivity extends BaseActivity {
                         });
                     }
                 });
-                if (PlayActivity.this.mVodInfo.playFlag.contains("Ali") || PlayActivity.this.mVodInfo.playFlag.contains("parse")) {
-                    searchSubtitleDialog.setSearchWord(PlayActivity.this.mVodInfo.playNote);
+                if (PlayFragment.this.mVodInfo.playFlag.contains("Ali") || PlayFragment.this.mVodInfo.playFlag.contains("parse")) {
+                    searchSubtitleDialog.setSearchWord(PlayFragment.this.mVodInfo.playNote);
                 } else {
-                    searchSubtitleDialog.setSearchWord(PlayActivity.this.mVodInfo.name);
+                    searchSubtitleDialog.setSearchWord(PlayFragment.this.mVodInfo.name);
                 }
                 searchSubtitleDialog.show();
             }
         });
         subtitleDialog.setLocalFileChooserListener(new SubtitleDialog.LocalFileChooserListener() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass6 */
+            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass6 */
 
             @Override // com.github.tvbox.osc.ui.dialog.SubtitleDialog.LocalFileChooserListener
             public void openLocalFileChooserDialog() {
-                new ChooserDialog((Activity) PlayActivity.this).withFilter(false, false, "srt", "ass", "scc", "stl", "ttml").withStartFile("/storage/emulated/0/Download").withChosenListener(new ChooserDialog.Result() {
-                    /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass6.AnonymousClass1 */
+                new ChooserDialog((Activity) PlayFragment.this.getActivity()).withFilter(false, false, "srt", "ass", "scc", "stl", "ttml").withStartFile("/storage/emulated/0/Download").withChosenListener(new ChooserDialog.Result() {
+                    /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass6.AnonymousClass1 */
 
                     @Override // com.obsez.android.lib.filechooser.ChooserDialog.Result
                     public void onChoosePath(String str, File file) {
                         LOG.i("Local Subtitle Path: " + str);
-                        PlayActivity.this.setSubtitle(str);
+                        PlayFragment.this.setSubtitle(str);
                     }
                 }).build().show();
             }
@@ -377,10 +377,10 @@ public class PlayActivity extends BaseActivity {
     /* access modifiers changed from: package-private */
     public void setSubtitleViewTextStyle(int i) {
         if (i == 0) {
-            this.mController.mSubtitleView.setTextColor(getBaseContext().getResources().getColorStateList(2131034178));
+            this.mController.mSubtitleView.setTextColor(getContext().getResources().getColorStateList(2131034178));
             this.mController.mSubtitleView.setShadowLayer(3.0f, 2.0f, 2.0f, R.color.color_000000_80);
         } else if (i == 1) {
-            this.mController.mSubtitleView.setTextColor(getBaseContext().getResources().getColorStateList(2131034176));
+            this.mController.mSubtitleView.setTextColor(getContext().getResources().getColorStateList(2131034176));
             this.mController.mSubtitleView.setShadowLayer(3.0f, 2.0f, 2.0f, 2131034178);
         }
     }
@@ -399,13 +399,13 @@ public class PlayActivity extends BaseActivity {
                 Toast.makeText(this.mContext, getString(R.string.vod_sub_na), 0).show();
                 return;
             }
-            final SelectDialog selectDialog = new SelectDialog(this);
+            final SelectDialog selectDialog = new SelectDialog(this.mContext);
             selectDialog.setTip(getString(R.string.vod_sub_sel));
             selectDialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<TrackInfoBean>() {
-                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass7 */
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass7 */
 
                 public void click(TrackInfoBean trackInfoBean, int i) {
-                    PlayActivity.this.mController.mSubtitleView.setVisibility(0);
+                    PlayFragment.this.mController.mSubtitleView.setVisibility(0);
                     try {
                         Iterator it = subtitle.iterator();
                         while (true) {
@@ -422,12 +422,12 @@ public class PlayActivity extends BaseActivity {
                         mediaPlayer.pause();
                         final long currentPosition = mediaPlayer.getCurrentPosition();
                         if (mediaPlayer instanceof IjkMediaPlayer) {
-                            PlayActivity.this.mController.mSubtitleView.destroy();
-                            PlayActivity.this.mController.mSubtitleView.clearSubtitleCache();
-                            PlayActivity.this.mController.mSubtitleView.isInternal = true;
+                            PlayFragment.this.mController.mSubtitleView.destroy();
+                            PlayFragment.this.mController.mSubtitleView.clearSubtitleCache();
+                            PlayFragment.this.mController.mSubtitleView.isInternal = true;
                             ((IjkMediaPlayer) mediaPlayer).setTrack(trackInfoBean.index);
                             new Handler().postDelayed(new Runnable() {
-                                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass7.AnonymousClass1 */
+                                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass7.AnonymousClass1 */
 
                                 public void run() {
                                     mediaPlayer.seekTo(currentPosition);
@@ -445,7 +445,7 @@ public class PlayActivity extends BaseActivity {
                     return trackInfoBean.index + " : " + trackInfoBean.language;
                 }
             }, new DiffUtil.ItemCallback<TrackInfoBean>() {
-                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass8 */
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass8 */
 
                 public boolean areItemsTheSame(TrackInfoBean trackInfoBean, TrackInfoBean trackInfoBean2) {
                     return trackInfoBean.index == trackInfoBean2.index;
@@ -474,10 +474,10 @@ public class PlayActivity extends BaseActivity {
             }
             final List<TrackInfoBean> audio = trackInfo.getAudio();
             if (audio.size() >= 1) {
-                final SelectDialog selectDialog = new SelectDialog(this);
+                final SelectDialog selectDialog = new SelectDialog(getActivity());
                 selectDialog.setTip(getString(R.string.vod_audio));
                 selectDialog.setAdapter(new SelectDialogAdapter.SelectDialogInterface<TrackInfoBean>() {
-                    /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass9 */
+                    /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass9 */
 
                     public void click(TrackInfoBean trackInfoBean, int i) {
                         try {
@@ -491,7 +491,7 @@ public class PlayActivity extends BaseActivity {
                                 ((IjkMediaPlayer) abstractPlayer).setTrack(trackInfoBean.index);
                             }
                             new Handler().postDelayed(new Runnable() {
-                                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass9.AnonymousClass1 */
+                                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass9.AnonymousClass1 */
 
                                 public void run() {
                                     mediaPlayer.seekTo(currentPosition);
@@ -509,7 +509,7 @@ public class PlayActivity extends BaseActivity {
                         return trackInfoBean.index + " : " + trackInfoBean.language + " - " + replace;
                     }
                 }, new DiffUtil.ItemCallback<TrackInfoBean>() {
-                    /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass10 */
+                    /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass10 */
 
                     public boolean areItemsTheSame(TrackInfoBean trackInfoBean, TrackInfoBean trackInfoBean2) {
                         return trackInfoBean.index == trackInfoBean2.index;
@@ -534,18 +534,23 @@ public class PlayActivity extends BaseActivity {
     }
 
     /* access modifiers changed from: package-private */
-    public void setTip(String str, boolean z, boolean z2) {
-        try {
-            this.mPlayLoadTip.setText(str);
-            int i = 0;
-            this.mPlayLoadTip.setVisibility(0);
-            this.mPlayLoading.setVisibility(z ? 0 : 8);
-            ImageView imageView = this.mPlayLoadErr;
-            if (!z2) {
-                i = 8;
-            }
-            imageView.setVisibility(i);
-        } catch (Exception unused) {
+    public void setTip(final String str, final boolean z, final boolean z2) {
+        if (isAdded()) {
+            requireActivity().runOnUiThread(new Runnable() {
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass11 */
+
+                public void run() {
+                    PlayFragment.this.mPlayLoadTip.setText(str);
+                    int i = 0;
+                    PlayFragment.this.mPlayLoadTip.setVisibility(0);
+                    PlayFragment.this.mPlayLoading.setVisibility(z ? 0 : 8);
+                    ImageView imageView = PlayFragment.this.mPlayLoadErr;
+                    if (!z2) {
+                        i = 8;
+                    }
+                    imageView.setVisibility(i);
+                }
+            });
         }
     }
 
@@ -559,16 +564,15 @@ public class PlayActivity extends BaseActivity {
     /* access modifiers changed from: package-private */
     public void errorWithRetry(final String str, final boolean z) {
         if (!autoRetry()) {
-            runOnUiThread(new Runnable() {
-                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass11 */
+            requireActivity().runOnUiThread(new Runnable() {
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass12 */
 
                 public void run() {
                     if (z) {
-                        Toast.makeText(PlayActivity.this.mContext, str, 0).show();
-                        PlayActivity.this.finish();
-                        return;
+                        Toast.makeText(PlayFragment.this.mContext, str, 0).show();
+                    } else {
+                        PlayFragment.this.setTip(str, false, true);
                     }
-                    PlayActivity.this.setTip(str, false, true);
                 }
             });
         }
@@ -576,73 +580,72 @@ public class PlayActivity extends BaseActivity {
 
     /* access modifiers changed from: package-private */
     public void playUrl(final String str, final HashMap<String, String> hashMap) {
-        runOnUiThread(new Runnable() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass12 */
+        if (this.mActivity != null) {
+            requireActivity().runOnUiThread(new Runnable() {
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass13 */
 
-            public void run() {
-                boolean z;
-                PlayActivity.this.stopParse();
-                if (PlayActivity.this.mVideoView != null) {
-                    PlayActivity.this.mVideoView.release();
-                    String str = str;
-                    if (str != null) {
-                        PlayActivity.this.videoURL = str;
-                        try {
-                            int i = PlayActivity.this.mVodPlayerCfg.getInt(an.az);
-                            boolean z2 = false;
-                            PlayActivity.this.extPlay = false;
-                            if (i >= 10) {
-                                String str2 = PlayActivity.this.mVodInfo.name + " : " + PlayActivity.this.mVodInfo.seriesMap.get(PlayActivity.this.mVodInfo.playFlag).get(PlayActivity.this.mVodInfo.playIndex).name;
-                                PlayActivity.this.setTip("调用外部播放器" + PlayerHelper.getPlayerName(i) + "进行播放", true, false);
-                                switch (i) {
-                                    case 10:
-                                        PlayActivity.this.extPlay = true;
-                                        PlayActivity playActivity = PlayActivity.this;
-                                        z = MXPlayer.run(playActivity, str, str2, playActivity.playSubtitle, hashMap);
-                                        break;
-                                    case 11:
-                                        PlayActivity.this.extPlay = true;
-                                        PlayActivity playActivity2 = PlayActivity.this;
-                                        z = ReexPlayer.run(playActivity2, str, str2, playActivity2.playSubtitle, hashMap);
-                                        break;
-                                    case 12:
-                                        PlayActivity.this.extPlay = true;
-                                        PlayActivity playActivity3 = PlayActivity.this;
-                                        z = Kodi.run(playActivity3, str, str2, playActivity3.playSubtitle, hashMap);
-                                        break;
-                                    default:
-                                        z = false;
-                                        break;
+                public void run() {
+                    boolean z;
+                    PlayFragment.this.stopParse();
+                    if (PlayFragment.this.mVideoView != null) {
+                        PlayFragment.this.mVideoView.release();
+                        String str = str;
+                        if (str != null) {
+                            PlayFragment.this.videoURL = str;
+                            try {
+                                int i = PlayFragment.this.mVodPlayerCfg.getInt(an.az);
+                                boolean z2 = false;
+                                PlayFragment.this.extPlay = false;
+                                if (i >= 10) {
+                                    String str2 = PlayFragment.this.mVodInfo.name + " : " + PlayFragment.this.mVodInfo.seriesMap.get(PlayFragment.this.mVodInfo.playFlag).get(PlayFragment.this.mVodInfo.playIndex).name;
+                                    PlayFragment.this.setTip("调用外部播放器" + PlayerHelper.getPlayerName(i) + "进行播放", true, false);
+                                    switch (i) {
+                                        case 10:
+                                            PlayFragment.this.extPlay = true;
+                                            z = MXPlayer.run(PlayFragment.this.requireActivity(), str, str2, PlayFragment.this.playSubtitle, hashMap);
+                                            break;
+                                        case 11:
+                                            PlayFragment.this.extPlay = true;
+                                            z = ReexPlayer.run(PlayFragment.this.requireActivity(), str, str2, PlayFragment.this.playSubtitle, hashMap);
+                                            break;
+                                        case 12:
+                                            PlayFragment.this.extPlay = true;
+                                            z = Kodi.run(PlayFragment.this.requireActivity(), str, str2, PlayFragment.this.playSubtitle, hashMap);
+                                            break;
+                                        default:
+                                            z = false;
+                                            break;
+                                    }
+                                    PlayFragment playFragment = PlayFragment.this;
+                                    StringBuilder sb = new StringBuilder();
+                                    sb.append("调用外部播放器");
+                                    sb.append(PlayerHelper.getPlayerName(i));
+                                    sb.append(z ? "成功" : "失败");
+                                    String sb2 = sb.toString();
+                                    if (!z) {
+                                        z2 = true;
+                                    }
+                                    playFragment.setTip(sb2, z, z2);
+                                    return;
                                 }
-                                PlayActivity playActivity4 = PlayActivity.this;
-                                StringBuilder sb = new StringBuilder();
-                                sb.append("调用外部播放器");
-                                sb.append(PlayerHelper.getPlayerName(i));
-                                sb.append(z ? "成功" : "失败");
-                                String sb2 = sb.toString();
-                                if (!z) {
-                                    z2 = true;
-                                }
-                                playActivity4.setTip(sb2, z, z2);
-                                return;
+                            } catch (JSONException e) {
+                                e.printStackTrace();
                             }
-                        } catch (JSONException e) {
-                            e.printStackTrace();
+                            PlayFragment.this.hideTip();
+                            PlayerHelper.updateCfg(PlayFragment.this.mVideoView, PlayFragment.this.mVodPlayerCfg);
+                            PlayFragment.this.mVideoView.setProgressKey(PlayFragment.this.progressKey);
+                            if (hashMap != null) {
+                                PlayFragment.this.mVideoView.setUrl(str, hashMap);
+                            } else {
+                                PlayFragment.this.mVideoView.setUrl(str);
+                            }
+                            PlayFragment.this.mVideoView.start();
+                            PlayFragment.this.mController.resetSpeed();
                         }
-                        PlayActivity.this.hideTip();
-                        PlayerHelper.updateCfg(PlayActivity.this.mVideoView, PlayActivity.this.mVodPlayerCfg);
-                        PlayActivity.this.mVideoView.setProgressKey(PlayActivity.this.progressKey);
-                        if (hashMap != null) {
-                            PlayActivity.this.mVideoView.setUrl(str, hashMap);
-                        } else {
-                            PlayActivity.this.mVideoView.setUrl(str);
-                        }
-                        PlayActivity.this.mVideoView.start();
-                        PlayActivity.this.mController.resetSpeed();
                     }
                 }
-            }
-        });
+            });
+        }
     }
 
     /* access modifiers changed from: private */
@@ -654,14 +657,14 @@ public class PlayActivity extends BaseActivity {
                 this.mController.mSubtitleView.hasInternal = true;
             }
             ((IjkMediaPlayer) this.mVideoView.getMediaPlayer()).setOnTimedTextListener(new IMediaPlayer.OnTimedTextListener() {
-                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass13 */
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass14 */
 
                 @Override // tv.danmaku.ijk.media.player.IMediaPlayer.OnTimedTextListener
                 public void onTimedText(IMediaPlayer iMediaPlayer, IjkTimedText ijkTimedText) {
-                    if (PlayActivity.this.mController.mSubtitleView.isInternal) {
+                    if (PlayFragment.this.mController.mSubtitleView.isInternal) {
                         com.github.tvbox.osc.subtitle.model.Subtitle subtitle = new com.github.tvbox.osc.subtitle.model.Subtitle();
                         subtitle.content = ijkTimedText.getText();
-                        PlayActivity.this.mController.mSubtitleView.onSubtitleChanged(subtitle);
+                        PlayFragment.this.mController.mSubtitleView.onSubtitleChanged(subtitle);
                     }
                 }
             });
@@ -685,22 +688,22 @@ public class PlayActivity extends BaseActivity {
         SourceViewModel sourceViewModel2 = (SourceViewModel) new ViewModelProvider(this).get(SourceViewModel.class);
         this.sourceViewModel = sourceViewModel2;
         sourceViewModel2.playResult.observe(this, new Observer<JSONObject>() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass14 */
+            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass15 */
 
             public void onChanged(JSONObject jSONObject) {
                 if (jSONObject != null) {
                     try {
                         HashMap<String, String> hashMap = null;
-                        PlayActivity.this.progressKey = jSONObject.optString("proKey", null);
+                        PlayFragment.this.progressKey = jSONObject.optString("proKey", null);
                         boolean equals = jSONObject.optString("parse", "1").equals("1");
                         boolean equals2 = jSONObject.optString("jx", SessionDescription.SUPPORTED_SDP_VERSION).equals("1");
-                        PlayActivity.this.playSubtitle = jSONObject.optString("subt", "");
-                        PlayActivity.this.subtitleCacheKey = jSONObject.optString("subtKey", null);
+                        PlayFragment.this.playSubtitle = jSONObject.optString("subt", "");
+                        PlayFragment.this.subtitleCacheKey = jSONObject.optString("subtKey", null);
                         String optString = jSONObject.optString("playUrl", "");
                         String optString2 = jSONObject.optString("flag");
                         String string = jSONObject.getString("url");
-                        PlayActivity.this.webUserAgent = null;
-                        PlayActivity.this.webHeaderMap = null;
+                        PlayFragment.this.webUserAgent = null;
+                        PlayFragment.this.webHeaderMap = null;
                         if (jSONObject.has("header")) {
                             try {
                                 JSONObject jSONObject2 = new JSONObject(jSONObject.getString("header"));
@@ -712,10 +715,10 @@ public class PlayActivity extends BaseActivity {
                                     }
                                     hashMap.put(next, jSONObject2.getString(next));
                                     if (next.equalsIgnoreCase(RtspHeaders.USER_AGENT)) {
-                                        PlayActivity.this.webUserAgent = jSONObject2.getString(next).trim();
+                                        PlayFragment.this.webUserAgent = jSONObject2.getString(next).trim();
                                     }
                                 }
-                                PlayActivity.this.webHeaderMap = hashMap;
+                                PlayFragment.this.webHeaderMap = hashMap;
                             } catch (Throwable unused) {
                             }
                         }
@@ -724,32 +727,28 @@ public class PlayActivity extends BaseActivity {
                             if ((optString.isEmpty() && ApiConfig.get().getVipParseFlags().contains(optString2)) || equals2) {
                                 z = true;
                             }
-                            PlayActivity.this.initParse(optString2, z, optString, string);
+                            PlayFragment.this.initParse(optString2, z, optString, string);
                             return;
                         }
-                        PlayActivity.this.mController.showParse(false);
-                        PlayActivity playActivity = PlayActivity.this;
-                        playActivity.playUrl(optString + string, hashMap);
+                        PlayFragment.this.mController.showParse(false);
+                        PlayFragment playFragment = PlayFragment.this;
+                        playFragment.playUrl(optString + string, hashMap);
                     } catch (Throwable unused2) {
-                        PlayActivity.this.errorWithRetry("获取播放信息错误", true);
+                        PlayFragment.this.errorWithRetry("获取播放信息错误", true);
                     }
                 } else {
-                    PlayActivity.this.errorWithRetry("获取播放信息错误", true);
+                    PlayFragment.this.errorWithRetry("获取播放信息错误", true);
                 }
             }
         });
     }
 
-    private void initData() {
-        Intent intent = getIntent();
-        if (intent != null && intent.getExtras() != null) {
-            Bundle extras = intent.getExtras();
-            this.mVodInfo = (VodInfo) extras.getSerializable("VodInfo");
-            this.sourceKey = extras.getString("sourceKey");
-            this.sourceBean = ApiConfig.get().getSource(this.sourceKey);
-            initPlayerCfg();
-            play(false);
-        }
+    public void setData(Bundle bundle) {
+        this.mVodInfo = (VodInfo) bundle.getSerializable("VodInfo");
+        this.sourceKey = bundle.getString("sourceKey");
+        this.sourceBean = ApiConfig.get().getSource(this.sourceKey);
+        initPlayerCfg();
+        play(false);
     }
 
     /* access modifiers changed from: package-private */
@@ -786,151 +785,59 @@ public class PlayActivity extends BaseActivity {
         this.mController.setPlayerConfig(this.mVodPlayerCfg);
     }
 
-    /* access modifiers changed from: package-private */
-    public void initPlayerDrive() {
-        try {
-            if (!this.mVodPlayerCfg.has(an.az)) {
-                this.mVodPlayerCfg.put(an.az, Hawk.get(HawkConfig.PLAY_TYPE, 1));
-            }
-            if (!this.mVodPlayerCfg.has("pr")) {
-                this.mVodPlayerCfg.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, 0));
-            }
-            if (!this.mVodPlayerCfg.has("ijk")) {
-                this.mVodPlayerCfg.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, ""));
-            }
-            if (!this.mVodPlayerCfg.has("sc")) {
-                this.mVodPlayerCfg.put("sc", Hawk.get(HawkConfig.PLAY_SCALE, 0));
-            }
-            if (!this.mVodPlayerCfg.has("sp")) {
-                this.mVodPlayerCfg.put("sp", 1.0d);
-            }
-            if (!this.mVodPlayerCfg.has("st")) {
-                this.mVodPlayerCfg.put("st", 0);
-            }
-            if (!this.mVodPlayerCfg.has("et")) {
-                this.mVodPlayerCfg.put("et", 0);
-            }
-        } catch (Throwable unused) {
-        }
-        this.mController.setPlayerConfig(this.mVodPlayerCfg);
+    public boolean onBackPressed() {
+        return this.mController.onBackPressed();
     }
 
-    public void onUserLeaveHint() {
-        Rational rational;
-        if (supportsPiPMode() && !this.extPlay && this.PiPON) {
-            int i = this.mVideoView.getVideoSize()[0];
-            int i2 = this.mVideoView.getVideoSize()[1];
-            if (i != 0) {
-                double d = (double) i;
-                double d2 = (double) i2;
-                Double.isNaN(d);
-                Double.isNaN(d2);
-                if (d / d2 > 2.39d) {
-                    Double.isNaN(d);
-                    i2 = (int) (d / 2.35d);
-                }
-                rational = new Rational(i, i2);
-            } else {
-                rational = new Rational(16, 9);
-            }
-            ArrayList arrayList = new ArrayList();
-            arrayList.add(generateRemoteAction(17301541, 0, "Prev", "Play Previous"));
-            arrayList.add(generateRemoteAction(17301540, 1, "Play/Pause", "Play or Pause"));
-            arrayList.add(generateRemoteAction(17301538, 2, "Next", "Play Next"));
-            enterPictureInPictureMode(new PictureInPictureParams.Builder().setAspectRatio(rational).setActions(arrayList).build());
-            this.mController.hideBottom();
-        }
-        super.onUserLeaveHint();
-    }
-
-    @Override // androidx.activity.ComponentActivity
-    public void onBackPressed() {
-        if (!this.mController.onBackPressed()) {
-            super.onBackPressed();
-        }
-    }
-
-    @Override // androidx.core.app.ComponentActivity, androidx.appcompat.app.AppCompatActivity
     public boolean dispatchKeyEvent(KeyEvent keyEvent) {
-        if (keyEvent == null || !this.mController.onKeyEvent(keyEvent)) {
-            return super.dispatchKeyEvent(keyEvent);
+        if (keyEvent != null) {
+            return this.mController.onKeyEvent(keyEvent);
         }
-        return true;
+        return false;
     }
 
-    /* access modifiers changed from: protected */
-    @Override // androidx.fragment.app.FragmentActivity, com.github.tvbox.osc.base.BaseActivity
+    @Override // androidx.fragment.app.Fragment
+    public void onStop() {
+        super.onStop();
+        this.mVideoView.pause();
+    }
+
+    @Override // androidx.fragment.app.Fragment, com.github.tvbox.osc.base.BaseLazyFragment
     public void onResume() {
         super.onResume();
         MyVideoView myVideoView = this.mVideoView;
         if (myVideoView != null) {
-            this.onStopCalled = false;
             myVideoView.resume();
         }
     }
 
-    /* access modifiers changed from: protected */
-    @Override // androidx.appcompat.app.AppCompatActivity, androidx.fragment.app.FragmentActivity
-    public void onStop() {
-        super.onStop();
-        this.onStopCalled = true;
-    }
-
-    /* access modifiers changed from: protected */
-    @Override // androidx.fragment.app.FragmentActivity
-    public void onPause() {
-        super.onPause();
-        if (this.mVideoView == null) {
-            return;
-        }
-        if (!supportsPiPMode()) {
-            this.mVideoView.pause();
-        } else if (isInPictureInPictureMode()) {
-            this.mVideoView.resume();
-        } else {
-            this.mVideoView.pause();
-        }
-    }
-
-    private RemoteAction generateRemoteAction(int i, int i2, String str, String str2) {
-        return new RemoteAction(Icon.createWithResource(this, i), str, str2, PendingIntent.getBroadcast(this, i2, new Intent("PIP_VOD_CONTROL").putExtra("action", i2), 0));
-    }
-
-    @Override // androidx.fragment.app.FragmentActivity
+    @Override // androidx.fragment.app.Fragment
     public void onPictureInPictureModeChanged(boolean z) {
-        super.onPictureInPictureModeChanged(z);
-        if (!supportsPiPMode() || !z) {
-            if (this.onStopCalled) {
-                this.mVideoView.release();
-            }
-            unregisterReceiver(this.pipActionReceiver);
-            this.pipActionReceiver = null;
-            return;
+        if (!z) {
+            this.mVideoView.isPlaying();
         }
-        AnonymousClass15 r3 = new BroadcastReceiver() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass15 */
-
-            public void onReceive(Context context, Intent intent) {
-                if (intent != null && intent.getAction().equals("PIP_VOD_CONTROL") && PlayActivity.this.mController != null) {
-                    int intExtra = intent.getIntExtra("action", 1);
-                    if (intExtra == 0) {
-                        PlayActivity.this.playPrevious();
-                    } else if (intExtra == 1) {
-                        PlayActivity.this.mController.togglePlay();
-                    } else if (intExtra == 2) {
-                        PlayActivity.this.playNext(false);
-                    }
-                }
-            }
-        };
-        this.pipActionReceiver = r3;
-        registerReceiver(r3, new IntentFilter("PIP_VOD_CONTROL"));
+        super.onPictureInPictureModeChanged(z);
     }
 
-    /* access modifiers changed from: protected */
-    @Override // androidx.appcompat.app.AppCompatActivity, androidx.fragment.app.FragmentActivity, com.github.tvbox.osc.base.BaseActivity
-    public void onDestroy() {
-        super.onDestroy();
+    @Override // androidx.fragment.app.Fragment, com.github.tvbox.osc.base.BaseLazyFragment
+    public void onHiddenChanged(boolean z) {
+        if (z) {
+            MyVideoView myVideoView = this.mVideoView;
+            if (myVideoView != null) {
+                myVideoView.pause();
+            }
+        } else {
+            MyVideoView myVideoView2 = this.mVideoView;
+            if (myVideoView2 != null) {
+                myVideoView2.resume();
+            }
+        }
+        super.onHiddenChanged(z);
+    }
+
+    @Override // androidx.fragment.app.Fragment, com.github.tvbox.osc.base.BaseLazyFragment
+    public void onDestroyView() {
+        super.onDestroyView();
         MyVideoView myVideoView = this.mVideoView;
         if (myVideoView != null) {
             myVideoView.release();
@@ -940,51 +847,27 @@ public class PlayActivity extends BaseActivity {
         stopParse();
     }
 
-    /* access modifiers changed from: private */
-    /* access modifiers changed from: public */
-    private void playNext(boolean z) {
-        boolean z2;
+    public void playNext(boolean z) {
         VodInfo vodInfo = this.mVodInfo;
-        if (vodInfo == null || vodInfo.seriesMap.get(this.mVodInfo.playFlag) == null || (!this.mVodInfo.reverseSort ? this.mVodInfo.playIndex + 1 >= this.mVodInfo.seriesMap.get(this.mVodInfo.playFlag).size() : this.mVodInfo.playIndex - 1 < 0)) {
-            z2 = false;
-        } else {
-            z2 = true;
-        }
-        if (!z2) {
-            Toast.makeText(this, "已经是最后一集了", 0).show();
-            if (z) {
-                finish();
+        if (!((vodInfo == null || vodInfo.seriesMap.get(this.mVodInfo.playFlag) == null || this.mVodInfo.playIndex + 1 >= this.mVodInfo.seriesMap.get(this.mVodInfo.playFlag).size()) ? false : true)) {
+            Toast.makeText(requireContext(), "已经是最后一集了", 0).show();
+            if (z && ((DetailActivity) this.mActivity).fullWindows) {
+                ((DetailActivity) this.mActivity).toggleFullPreview();
                 return;
             }
             return;
         }
-        if (this.mVodInfo.reverseSort) {
-            this.mVodInfo.playIndex--;
-        } else {
-            this.mVodInfo.playIndex++;
-        }
+        this.mVodInfo.playIndex++;
         play(false);
     }
 
-    /* access modifiers changed from: private */
-    /* access modifiers changed from: public */
-    private void playPrevious() {
-        boolean z;
+    public void playPrevious() {
         VodInfo vodInfo = this.mVodInfo;
-        if (vodInfo == null || vodInfo.seriesMap.get(this.mVodInfo.playFlag) == null || (!this.mVodInfo.reverseSort ? this.mVodInfo.playIndex - 1 < 0 : this.mVodInfo.playIndex + 1 >= this.mVodInfo.seriesMap.get(this.mVodInfo.playFlag).size())) {
-            z = false;
-        } else {
-            z = true;
-        }
-        if (!z) {
-            Toast.makeText(this, "已经是第一集了", 0).show();
+        if (!((vodInfo == null || vodInfo.seriesMap.get(this.mVodInfo.playFlag) == null || this.mVodInfo.playIndex - 1 < 0) ? false : true)) {
+            Toast.makeText(requireContext(), "已经是第一集了", 0).show();
             return;
         }
-        if (this.mVodInfo.reverseSort) {
-            this.mVodInfo.playIndex++;
-        } else {
-            this.mVodInfo.playIndex--;
-        }
+        this.mVodInfo.playIndex--;
         play(false);
     }
 
@@ -1008,7 +891,10 @@ public class PlayActivity extends BaseActivity {
         stopParse();
         MyVideoView myVideoView = this.mVideoView;
         if (myVideoView != null) {
-            myVideoView.release();
+            try {
+                myVideoView.release();
+            } catch (Exception unused) {
+            }
         }
         String str = this.mVodInfo.sourceKey + "-" + this.mVodInfo.id + "-" + this.mVodInfo.playFlag + "-" + this.mVodInfo.playIndex + "-" + vodSeries.name + "-subt";
         String str2 = this.mVodInfo.sourceKey + this.mVodInfo.id + this.mVodInfo.playFlag + this.mVodInfo.playIndex;
@@ -1016,24 +902,8 @@ public class PlayActivity extends BaseActivity {
             CacheManager.delete(MD5.string2MD5(str2), 0);
             CacheManager.delete(MD5.string2MD5(str), "");
         }
-        if (vodSeries.url.startsWith("tvbox-drive://")) {
-            initPlayerDrive();
-            this.mController.showParse(false);
-            HashMap<String, String> hashMap = null;
-            if (this.mVodInfo.playerCfg != null && this.mVodInfo.playerCfg.length() > 0) {
-                JsonObject asJsonObject = JsonParser.parseString(this.mVodInfo.playerCfg).getAsJsonObject();
-                if (asJsonObject.has("headers")) {
-                    hashMap = new HashMap<>();
-                    Iterator<JsonElement> it = asJsonObject.getAsJsonArray("headers").iterator();
-                    while (it.hasNext()) {
-                        JsonObject asJsonObject2 = it.next().getAsJsonObject();
-                        hashMap.put(asJsonObject2.get(SerializableCookie.NAME).getAsString(), asJsonObject2.get("value").getAsString());
-                    }
-                }
-            }
-            playUrl(vodSeries.url.replace("tvbox-drive://", ""), hashMap);
-        } else if (Thunder.play(vodSeries.url, new Thunder.ThunderCallback() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass16 */
+        if (Thunder.play(vodSeries.url, new Thunder.ThunderCallback() {
+            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass16 */
 
             @Override // com.github.tvbox.osc.util.thunder.Thunder.ThunderCallback
             public void list(String str) {
@@ -1042,15 +912,15 @@ public class PlayActivity extends BaseActivity {
             @Override // com.github.tvbox.osc.util.thunder.Thunder.ThunderCallback
             public void status(int i, String str) {
                 if (i < 0) {
-                    PlayActivity.this.setTip(str, false, true);
+                    PlayFragment.this.setTip(str, false, true);
                 } else {
-                    PlayActivity.this.setTip(str, true, false);
+                    PlayFragment.this.setTip(str, true, false);
                 }
             }
 
             @Override // com.github.tvbox.osc.util.thunder.Thunder.ThunderCallback
             public void play(String str) {
-                PlayActivity.this.playUrl(str, null);
+                PlayFragment.this.playUrl(str, null);
             }
         })) {
             this.mController.showParse(false);
@@ -1173,8 +1043,8 @@ public class PlayActivity extends BaseActivity {
             } catch (Throwable th) {
                 th.printStackTrace();
             }
-            ((GetRequest) ((GetRequest) OkGo.get(parseBean.getUrl() + this.webUrl).tag("json_jx")).headers(httpHeaders)).execute(new AbsCallback<String>() {
-                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass17 */
+            ((GetRequest) ((GetRequest) OkGo.get(parseBean.getUrl() + encodeUrl(this.webUrl)).tag("json_jx")).headers(httpHeaders)).execute(new AbsCallback<String>() {
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass17 */
 
                 @Override // com.lzy.okgo.convert.Converter
                 public String convertResponse(Response response) throws Throwable {
@@ -1188,8 +1058,8 @@ public class PlayActivity extends BaseActivity {
                 public void onSuccess(com.lzy.okgo.model.Response<String> response) {
                     String body = response.body();
                     try {
-                        PlayActivity playActivity = PlayActivity.this;
-                        JSONObject jsonParse = playActivity.jsonParse(playActivity.webUrl, body);
+                        PlayFragment playFragment = PlayFragment.this;
+                        JSONObject jsonParse = playFragment.jsonParse(playFragment.webUrl, body);
                         HashMap<String, String> hashMap = null;
                         if (jsonParse.has("header")) {
                             try {
@@ -1205,17 +1075,17 @@ public class PlayActivity extends BaseActivity {
                             } catch (Throwable unused) {
                             }
                         }
-                        PlayActivity.this.playUrl(jsonParse.getString("url"), hashMap);
+                        PlayFragment.this.playUrl(jsonParse.getString("url"), hashMap);
                     } catch (Throwable th) {
                         th.printStackTrace();
-                        PlayActivity.this.errorWithRetry("解析错误", false);
+                        PlayFragment.this.errorWithRetry("解析错误", false);
                     }
                 }
 
                 @Override // com.lzy.okgo.callback.AbsCallback, com.lzy.okgo.callback.Callback
                 public void onError(com.lzy.okgo.model.Response<String> response) {
                     super.onError(response);
-                    PlayActivity.this.errorWithRetry("解析错误", false);
+                    PlayFragment.this.errorWithRetry("解析错误", false);
                 }
             });
         } else if (parseBean.getType() == 2) {
@@ -1228,13 +1098,13 @@ public class PlayActivity extends BaseActivity {
                 }
             }
             this.parseThreadPool.execute(new Runnable() {
-                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass18 */
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass18 */
 
                 public void run() {
-                    final JSONObject jsonExt = ApiConfig.get().jsonExt(parseBean.getUrl(), linkedHashMap, PlayActivity.this.webUrl);
+                    final JSONObject jsonExt = ApiConfig.get().jsonExt(parseBean.getUrl(), linkedHashMap, PlayFragment.this.webUrl);
                     boolean z = false;
                     if (jsonExt == null || !jsonExt.has("url")) {
-                        PlayActivity.this.errorWithRetry("解析错误", false);
+                        PlayFragment.this.errorWithRetry("解析错误", false);
                         return;
                     }
                     HashMap<String, String> hashMap = null;
@@ -1253,11 +1123,11 @@ public class PlayActivity extends BaseActivity {
                         }
                     }
                     if (jsonExt.has("jxFrom")) {
-                        PlayActivity.this.runOnUiThread(new Runnable() {
-                            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass18.AnonymousClass1 */
+                        PlayFragment.this.requireActivity().runOnUiThread(new Runnable() {
+                            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass18.AnonymousClass1 */
 
                             public void run() {
-                                Context context = PlayActivity.this.mContext;
+                                Context context = PlayFragment.this.mContext;
                                 Toast.makeText(context, "解析来自:" + jsonExt.optString("jxFrom"), 0).show();
                             }
                         });
@@ -1266,10 +1136,10 @@ public class PlayActivity extends BaseActivity {
                         z = true;
                     }
                     if (z) {
-                        PlayActivity.this.loadUrl(DefaultConfig.checkReplaceProxy(jsonExt.optString("url", "")));
+                        PlayFragment.this.loadUrl(DefaultConfig.checkReplaceProxy(jsonExt.optString("url", "")));
                         return;
                     }
-                    PlayActivity.this.playUrl(jsonExt.optString("url", ""), hashMap);
+                    PlayFragment.this.playUrl(jsonExt.optString("url", ""), hashMap);
                 }
             });
         } else if (parseBean.getType() == 3) {
@@ -1288,13 +1158,13 @@ public class PlayActivity extends BaseActivity {
                 linkedHashMap2.put(parseBean3.getName(), hashMap);
             }
             this.parseThreadPool.execute(new Runnable() {
-                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass19 */
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass19 */
 
                 public void run() {
                     ApiConfig apiConfig = ApiConfig.get();
-                    final JSONObject jsonExtMix = apiConfig.jsonExtMix(PlayActivity.this.parseFlag + "111", parseBean.getUrl(), str, linkedHashMap2, PlayActivity.this.webUrl);
+                    final JSONObject jsonExtMix = apiConfig.jsonExtMix(PlayFragment.this.parseFlag + "111", parseBean.getUrl(), str, linkedHashMap2, PlayFragment.this.webUrl);
                     if (jsonExtMix == null || !jsonExtMix.has("url")) {
-                        PlayActivity.this.errorWithRetry("解析错误", false);
+                        PlayFragment.this.errorWithRetry("解析错误", false);
                     } else if (!jsonExtMix.has("parse") || jsonExtMix.optInt("parse", 0) != 1) {
                         HashMap<String, String> hashMap = null;
                         if (jsonExtMix.has("header")) {
@@ -1312,32 +1182,40 @@ public class PlayActivity extends BaseActivity {
                             }
                         }
                         if (jsonExtMix.has("jxFrom")) {
-                            PlayActivity.this.runOnUiThread(new Runnable() {
-                                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass19.AnonymousClass2 */
+                            PlayFragment.this.requireActivity().runOnUiThread(new Runnable() {
+                                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass19.AnonymousClass2 */
 
                                 public void run() {
-                                    Context context = PlayActivity.this.mContext;
+                                    Context context = PlayFragment.this.mContext;
                                     Toast.makeText(context, "解析来自:" + jsonExtMix.optString("jxFrom"), 0).show();
                                 }
                             });
                         }
-                        PlayActivity.this.playUrl(jsonExtMix.optString("url", ""), hashMap);
+                        PlayFragment.this.playUrl(jsonExtMix.optString("url", ""), hashMap);
                     } else {
-                        PlayActivity.this.runOnUiThread(new Runnable() {
-                            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass19.AnonymousClass1 */
+                        PlayFragment.this.requireActivity().runOnUiThread(new Runnable() {
+                            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass19.AnonymousClass1 */
 
                             public void run() {
                                 String checkReplaceProxy = DefaultConfig.checkReplaceProxy(jsonExtMix.optString("url", ""));
-                                PlayActivity.this.stopParse();
-                                PlayActivity.this.setTip("正在嗅探播放地址", true, false);
-                                PlayActivity.this.mHandler.removeMessages(100);
-                                PlayActivity.this.mHandler.sendEmptyMessageDelayed(100, SilenceSkippingAudioProcessor.DEFAULT_PADDING_SILENCE_US);
-                                PlayActivity.this.loadWebView(checkReplaceProxy);
+                                PlayFragment.this.stopParse();
+                                PlayFragment.this.setTip("正在嗅探播放地址", true, false);
+                                PlayFragment.this.mHandler.removeMessages(100);
+                                PlayFragment.this.mHandler.sendEmptyMessageDelayed(100, SilenceSkippingAudioProcessor.DEFAULT_PADDING_SILENCE_US);
+                                PlayFragment.this.loadWebView(checkReplaceProxy);
                             }
                         });
                     }
                 }
             });
+        }
+    }
+
+    private String encodeUrl(String str) {
+        try {
+            return URLEncoder.encode(str, "UTF-8");
+        } catch (Exception unused) {
+            return str;
         }
     }
 
@@ -1347,26 +1225,26 @@ public class PlayActivity extends BaseActivity {
             loadUrl(str);
         } else if (!((Boolean) Hawk.get(HawkConfig.PARSE_WEBVIEW, true)).booleanValue()) {
             XWalkUtils.tryUseXWalk(this.mContext, new XWalkUtils.XWalkState() {
-                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass20 */
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass20 */
 
                 @Override // com.github.tvbox.osc.util.XWalkUtils.XWalkState
                 public void success() {
-                    PlayActivity.this.initWebView(false);
-                    PlayActivity.this.loadUrl(str);
+                    PlayFragment.this.initWebView(false);
+                    PlayFragment.this.loadUrl(str);
                 }
 
                 @Override // com.github.tvbox.osc.util.XWalkUtils.XWalkState
                 public void fail() {
-                    Toast.makeText(PlayActivity.this.mContext, "XWalkView不兼容，已替换为系统自带WebView", 0).show();
-                    PlayActivity.this.initWebView(true);
-                    PlayActivity.this.loadUrl(str);
+                    Toast.makeText(PlayFragment.this.mContext, "XWalkView不兼容，已替换为系统自带WebView", 0).show();
+                    PlayFragment.this.initWebView(true);
+                    PlayFragment.this.loadUrl(str);
                 }
 
                 @Override // com.github.tvbox.osc.util.XWalkUtils.XWalkState
                 public void ignore() {
-                    Toast.makeText(PlayActivity.this.mContext, "XWalkView运行组件未下载，已替换为系统自带WebView", 0).show();
-                    PlayActivity.this.initWebView(true);
-                    PlayActivity.this.loadUrl(str);
+                    Toast.makeText(PlayFragment.this.mContext, "XWalkView运行组件未下载，已替换为系统自带WebView", 0).show();
+                    PlayFragment.this.initWebView(true);
+                    PlayFragment.this.loadUrl(str);
                 }
             });
         } else {
@@ -1390,31 +1268,30 @@ public class PlayActivity extends BaseActivity {
 
     /* access modifiers changed from: package-private */
     public void loadUrl(final String str) {
-        runOnUiThread(new Runnable() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass21 */
+        requireActivity().runOnUiThread(new Runnable() {
+            /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass21 */
 
             public void run() {
-                if (PlayActivity.this.mXwalkWebView != null) {
-                    PlayActivity.this.mXwalkWebView.stopLoading();
-                    new HashMap();
-                    if (PlayActivity.this.webUserAgent != null) {
-                        PlayActivity.this.mXwalkWebView.getSettings().setUserAgentString(PlayActivity.this.webUserAgent);
+                if (PlayFragment.this.mXwalkWebView != null) {
+                    PlayFragment.this.mXwalkWebView.stopLoading();
+                    if (PlayFragment.this.webUserAgent != null) {
+                        PlayFragment.this.mXwalkWebView.getSettings().setUserAgentString(PlayFragment.this.webUserAgent);
                     }
-                    if (PlayActivity.this.webHeaderMap != null) {
-                        PlayActivity.this.mXwalkWebView.loadUrl(str, PlayActivity.this.webHeaderMap);
+                    if (PlayFragment.this.webHeaderMap != null) {
+                        PlayFragment.this.mXwalkWebView.loadUrl(str, PlayFragment.this.webHeaderMap);
                     } else {
-                        PlayActivity.this.mXwalkWebView.loadUrl(str);
+                        PlayFragment.this.mXwalkWebView.loadUrl(str);
                     }
                 }
-                if (PlayActivity.this.mSysWebView != null) {
-                    PlayActivity.this.mSysWebView.stopLoading();
-                    if (PlayActivity.this.webUserAgent != null) {
-                        PlayActivity.this.mSysWebView.getSettings().setUserAgentString(PlayActivity.this.webUserAgent);
+                if (PlayFragment.this.mSysWebView != null) {
+                    PlayFragment.this.mSysWebView.stopLoading();
+                    if (PlayFragment.this.webUserAgent != null) {
+                        PlayFragment.this.mSysWebView.getSettings().setUserAgentString(PlayFragment.this.webUserAgent);
                     }
-                    if (PlayActivity.this.webHeaderMap != null) {
-                        PlayActivity.this.mSysWebView.loadUrl(str, PlayActivity.this.webHeaderMap);
+                    if (PlayFragment.this.webHeaderMap != null) {
+                        PlayFragment.this.mSysWebView.loadUrl(str, PlayFragment.this.webHeaderMap);
                     } else {
-                        PlayActivity.this.mSysWebView.loadUrl(str);
+                        PlayFragment.this.mSysWebView.loadUrl(str);
                     }
                 }
             }
@@ -1423,34 +1300,39 @@ public class PlayActivity extends BaseActivity {
 
     /* access modifiers changed from: package-private */
     public void stopLoadWebView(final boolean z) {
-        runOnUiThread(new Runnable() {
-            /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass22 */
+        if (this.mActivity != null) {
+            try {
+                requireActivity().runOnUiThread(new Runnable() {
+                    /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass22 */
 
-            public void run() {
-                if (PlayActivity.this.mXwalkWebView != null) {
-                    PlayActivity.this.mXwalkWebView.stopLoading();
-                    PlayActivity.this.mXwalkWebView.loadUrl("about:blank");
-                    if (z) {
-                        PlayActivity.this.mXwalkWebView.removeAllViews();
-                        PlayActivity.this.mXwalkWebView.onDestroy();
-                        PlayActivity.this.mXwalkWebView = null;
-                    }
-                }
-                if (PlayActivity.this.mSysWebView != null) {
-                    PlayActivity.this.mSysWebView.stopLoading();
-                    PlayActivity.this.mSysWebView.loadUrl("about:blank");
-                    if (z) {
-                        ViewGroup viewGroup = (ViewGroup) PlayActivity.this.mSysWebView.getParent();
-                        if (viewGroup != null) {
-                            viewGroup.removeView(PlayActivity.this.mSysWebView);
+                    public void run() {
+                        if (PlayFragment.this.mXwalkWebView != null) {
+                            PlayFragment.this.mXwalkWebView.stopLoading();
+                            PlayFragment.this.mXwalkWebView.loadUrl("about:blank");
+                            if (z) {
+                                PlayFragment.this.mXwalkWebView.removeAllViews();
+                                PlayFragment.this.mXwalkWebView.onDestroy();
+                                PlayFragment.this.mXwalkWebView = null;
+                            }
                         }
-                        PlayActivity.this.mSysWebView.removeAllViews();
-                        PlayActivity.this.mSysWebView.destroy();
-                        PlayActivity.this.mSysWebView = null;
+                        if (PlayFragment.this.mSysWebView != null) {
+                            PlayFragment.this.mSysWebView.stopLoading();
+                            PlayFragment.this.mSysWebView.loadUrl("about:blank");
+                            if (z) {
+                                ViewGroup viewGroup = (ViewGroup) PlayFragment.this.mSysWebView.getParent();
+                                if (viewGroup != null) {
+                                    viewGroup.removeView(PlayFragment.this.mSysWebView);
+                                }
+                                PlayFragment.this.mSysWebView.removeAllViews();
+                                PlayFragment.this.mSysWebView.destroy();
+                                PlayFragment.this.mSysWebView = null;
+                            }
+                        }
                     }
-                }
+                });
+            } catch (Exception unused) {
             }
-        });
+        }
     }
 
     /* access modifiers changed from: package-private */
@@ -1474,8 +1356,8 @@ public class PlayActivity extends BaseActivity {
 
         public void setOverScrollMode(int i) {
             super.setOverScrollMode(i);
-            if (PlayActivity.this.mContext instanceof Activity) {
-                AutoSize.autoConvertDensityOfCustomAdapt((Activity) PlayActivity.this.mContext, PlayActivity.this);
+            if (PlayFragment.this.mContext instanceof Activity) {
+                AutoSize.autoConvertDensityOfCustomAdapt((Activity) PlayFragment.this.mContext, PlayFragment.this);
             }
         }
     }
@@ -1492,8 +1374,8 @@ public class PlayActivity extends BaseActivity {
 
         public void setOverScrollMode(int i) {
             super.setOverScrollMode(i);
-            if (PlayActivity.this.mContext instanceof Activity) {
-                AutoSize.autoConvertDensityOfCustomAdapt((Activity) PlayActivity.this.mContext, PlayActivity.this);
+            if (PlayFragment.this.mContext instanceof Activity) {
+                AutoSize.autoConvertDensityOfCustomAdapt((Activity) PlayFragment.this.mContext, PlayFragment.this);
             }
         }
     }
@@ -1510,7 +1392,7 @@ public class PlayActivity extends BaseActivity {
             webView.setFocusableInTouchMode(false);
             webView.clearFocus();
             webView.setOverScrollMode(0);
-            addContentView(webView, layoutParams);
+            requireActivity().addContentView(webView, layoutParams);
             WebSettings settings = webView.getSettings();
             settings.setNeedInitialFocus(false);
             settings.setAllowContentAccess(true);
@@ -1538,7 +1420,7 @@ public class PlayActivity extends BaseActivity {
             settings.setDefaultTextEncodingName("utf-8");
             settings.setUserAgentString(webView.getSettings().getUserAgentString());
             webView.setWebChromeClient(new WebChromeClient() {
-                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass23 */
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass23 */
 
                 public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
                     return false;
@@ -1584,28 +1466,28 @@ public class PlayActivity extends BaseActivity {
                 return new WebResourceResponse("image/png", null, null);
             }
             LOG.i("shouldInterceptRequest url:" + str);
-            if (!PlayActivity.this.loadedUrls.containsKey(str)) {
+            if (!PlayFragment.this.loadedUrls.containsKey(str)) {
                 z = AdBlocker.isAd(str);
-                PlayActivity.this.loadedUrls.put(str, Boolean.valueOf(z));
+                PlayFragment.this.loadedUrls.put(str, Boolean.valueOf(z));
             } else {
-                z = ((Boolean) PlayActivity.this.loadedUrls.get(str)).booleanValue();
+                z = ((Boolean) PlayFragment.this.loadedUrls.get(str)).booleanValue();
             }
-            if (!z && !PlayActivity.this.loadFound && PlayActivity.this.checkVideoFormat(str)) {
-                PlayActivity.this.mHandler.removeMessages(100);
-                PlayActivity.this.loadFound = true;
+            if (!z && !PlayFragment.this.loadFound && PlayFragment.this.checkVideoFormat(str)) {
+                PlayFragment.this.mHandler.removeMessages(100);
+                PlayFragment.this.loadFound = true;
                 if (hashMap == null || hashMap.isEmpty()) {
-                    PlayActivity.this.playUrl(str, null);
+                    PlayFragment.this.playUrl(str, null);
                 } else {
-                    PlayActivity.this.playUrl(str, hashMap);
+                    PlayFragment.this.playUrl(str, hashMap);
                 }
                 String cookie = CookieManager.getInstance().getCookie(str);
                 if (!TextUtils.isEmpty(cookie)) {
                     hashMap.put("Cookie", StringUtils.SPACE + cookie);
                 }
-                PlayActivity.this.playUrl(str, hashMap);
-                PlayActivity.this.stopLoadWebView(false);
+                PlayFragment.this.playUrl(str, hashMap);
+                PlayFragment.this.stopLoadWebView(false);
             }
-            if (z || PlayActivity.this.loadFound) {
+            if (z || PlayFragment.this.loadFound) {
                 return AdBlocker.createEmptyResource();
             }
             return null;
@@ -1656,7 +1538,7 @@ public class PlayActivity extends BaseActivity {
             xWalkView.setFocusableInTouchMode(false);
             xWalkView.clearFocus();
             xWalkView.setOverScrollMode(0);
-            addContentView(xWalkView, layoutParams);
+            requireActivity().addContentView(xWalkView, layoutParams);
             XWalkSettings settings = xWalkView.getSettings();
             settings.setAllowContentAccess(true);
             settings.setAllowFileAccess(true);
@@ -1679,7 +1561,7 @@ public class PlayActivity extends BaseActivity {
             settings.setCacheMode(-1);
             xWalkView.setBackgroundColor(ViewCompat.MEASURED_STATE_MASK);
             xWalkView.setUIClient(new XWalkUIClient(xWalkView) {
-                /* class com.github.tvbox.osc.ui.activity.PlayActivity.AnonymousClass24 */
+                /* class com.github.tvbox.osc.ui.fragment.PlayFragment.AnonymousClass24 */
 
                 @Override // org.xwalk.core.XWalkUIClient
                 public boolean onConsoleMessage(XWalkView xWalkView, String str, int i, String str2, XWalkUIClient.ConsoleMessageType consoleMessageType) {
@@ -1746,15 +1628,15 @@ public class PlayActivity extends BaseActivity {
                 return createXWalkWebResourceResponse("image/png", null, null);
             }
             LOG.i("shouldInterceptLoadRequest url:" + uri);
-            if (!PlayActivity.this.loadedUrls.containsKey(uri)) {
+            if (!PlayFragment.this.loadedUrls.containsKey(uri)) {
                 z = AdBlocker.isAd(uri);
-                PlayActivity.this.loadedUrls.put(uri, Boolean.valueOf(z));
+                PlayFragment.this.loadedUrls.put(uri, Boolean.valueOf(z));
             } else {
-                z = ((Boolean) PlayActivity.this.loadedUrls.get(uri)).booleanValue();
+                z = ((Boolean) PlayFragment.this.loadedUrls.get(uri)).booleanValue();
             }
-            if (!z && !PlayActivity.this.loadFound && PlayActivity.this.checkVideoFormat(uri)) {
-                PlayActivity.this.mHandler.removeMessages(100);
-                PlayActivity.this.loadFound = true;
+            if (!z && !PlayFragment.this.loadFound && PlayFragment.this.checkVideoFormat(uri)) {
+                PlayFragment.this.mHandler.removeMessages(100);
+                PlayFragment.this.loadFound = true;
                 HashMap<String, String> hashMap = new HashMap<>();
                 try {
                     Map<String, String> requestHeaders = xWalkWebResourceRequest.getRequestHeaders();
@@ -1766,18 +1648,18 @@ public class PlayActivity extends BaseActivity {
                 } catch (Throwable unused) {
                 }
                 if (!hashMap.isEmpty()) {
-                    PlayActivity.this.playUrl(uri, hashMap);
+                    PlayFragment.this.playUrl(uri, hashMap);
                 } else {
-                    PlayActivity.this.playUrl(uri, null);
+                    PlayFragment.this.playUrl(uri, null);
                 }
                 String cookie = CookieManager.getInstance().getCookie(uri);
                 if (!TextUtils.isEmpty(cookie)) {
                     hashMap.put("Cookie", StringUtils.SPACE + cookie);
                 }
-                PlayActivity.this.playUrl(uri, hashMap);
-                PlayActivity.this.stopLoadWebView(false);
+                PlayFragment.this.playUrl(uri, hashMap);
+                PlayFragment.this.stopLoadWebView(false);
             }
-            if (z || PlayActivity.this.loadFound) {
+            if (z || PlayFragment.this.loadFound) {
                 return createXWalkWebResourceResponse(NanoHTTPD.MIME_PLAINTEXT, "utf-8", new ByteArrayInputStream("".getBytes()));
             }
             return super.shouldInterceptLoadRequest(xWalkView, xWalkWebResourceRequest);

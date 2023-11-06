@@ -4,100 +4,95 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-
-import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.github.tvbox.osc.R;
-
-import org.jetbrains.annotations.NotNull;
-
+import com.github.tvbox.osc.util.SourceUtil;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ApiHistoryDialogAdapter extends ListAdapter<String, ApiHistoryDialogAdapter.SelectViewHolder> {
+public class ApiHistoryDialogAdapter extends ListAdapter<String, SelectViewHolder> {
+    private ArrayList<String> data = new ArrayList<>();
+    private SelectDialogInterface dialogInterface = null;
+    private String select = "";
 
-    class SelectViewHolder extends RecyclerView.ViewHolder {
+    public interface SelectDialogInterface {
+        void click(String str);
 
-        public SelectViewHolder(@NonNull @NotNull View itemView) {
-            super(itemView);
+        void del(String str, ArrayList<String> arrayList);
+    }
+
+    /* access modifiers changed from: package-private */
+    public class SelectViewHolder extends RecyclerView.ViewHolder {
+        public SelectViewHolder(View view) {
+            super(view);
         }
     }
 
-    public interface SelectDialogInterface {
-        void click(String value);
-
-        void del(String value, ArrayList<String> data);
-    }
-
-
-    private ArrayList<String> data = new ArrayList<>();
-
-    private String select = "";
-
-    private SelectDialogInterface dialogInterface = null;
-
-    public ApiHistoryDialogAdapter(SelectDialogInterface dialogInterface) {
+    public ApiHistoryDialogAdapter(SelectDialogInterface selectDialogInterface) {
         super(new DiffUtil.ItemCallback<String>() {
-            @Override
-            public boolean areItemsTheSame(@NonNull @NotNull String oldItem, @NonNull @NotNull String newItem) {
-                return oldItem.equals(newItem);
+            /* class com.github.tvbox.osc.ui.adapter.ApiHistoryDialogAdapter.AnonymousClass1 */
+
+            public boolean areItemsTheSame(String str, String str2) {
+                return str.equals(str2);
             }
 
-            @Override
-            public boolean areContentsTheSame(@NonNull @NotNull String oldItem, @NonNull @NotNull String newItem) {
-                return oldItem.equals(newItem);
+            public boolean areContentsTheSame(String str, String str2) {
+                return str.equals(str2);
             }
         });
-        this.dialogInterface = dialogInterface;
+        this.dialogInterface = selectDialogInterface;
     }
 
-    public void setData(List<String> newData, int defaultSelect) {
-        data.clear();
-        data.addAll(newData);
-        select = data.get(defaultSelect);
+    public void setData(List<String> list, int i) {
+        this.data.clear();
+        this.data.addAll(list);
+        this.select = this.data.get(i);
         notifyDataSetChanged();
     }
 
-    @Override
+    @Override // androidx.recyclerview.widget.ListAdapter, androidx.recyclerview.widget.RecyclerView.Adapter
     public int getItemCount() {
-        return data.size();
+        return this.data.size();
     }
 
-
-    @Override
-    public ApiHistoryDialogAdapter.SelectViewHolder onCreateViewHolder(@NonNull @NotNull ViewGroup parent, int viewType) {
-        return new ApiHistoryDialogAdapter.SelectViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_dialog_api_history, parent, false));
+    @Override // androidx.recyclerview.widget.RecyclerView.Adapter
+    public SelectViewHolder onCreateViewHolder(ViewGroup viewGroup, int i) {
+        return new SelectViewHolder(LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.item_dialog_api_history, viewGroup, false));
     }
 
-    @Override
-    public void onBindViewHolder(@NonNull @NotNull ApiHistoryDialogAdapter.SelectViewHolder holder, int position) {
-        String value = data.get(position);
-        String name = value;
-        if (select.equals(value))
-            name = "√ " + name;
-        ((TextView) holder.itemView.findViewById(R.id.tvName)).setText(name);
-        holder.itemView.findViewById(R.id.tvName).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (select.equals(value))
-                    return;
-                notifyItemChanged(data.indexOf(select));
-                select = value;
-                notifyItemChanged(data.indexOf(value));
-                dialogInterface.click(value);
+    public void onBindViewHolder(SelectViewHolder selectViewHolder, int i) {
+        final String str = this.data.get(i);
+        String apiName = SourceUtil.getApiName(str);
+        if (this.select.equals(str)) {
+            apiName = "√ " + apiName;
+        }
+        ((TextView) selectViewHolder.itemView.findViewById(R.id.tvName)).setText(apiName);
+        selectViewHolder.itemView.findViewById(R.id.tvName).setOnClickListener(new View.OnClickListener() {
+            /* class com.github.tvbox.osc.ui.adapter.ApiHistoryDialogAdapter.AnonymousClass2 */
+
+            public void onClick(View view) {
+                if (!ApiHistoryDialogAdapter.this.select.equals(str)) {
+                    ApiHistoryDialogAdapter apiHistoryDialogAdapter = ApiHistoryDialogAdapter.this;
+                    apiHistoryDialogAdapter.notifyItemChanged(apiHistoryDialogAdapter.data.indexOf(ApiHistoryDialogAdapter.this.select));
+                    ApiHistoryDialogAdapter.this.select = str;
+                    ApiHistoryDialogAdapter apiHistoryDialogAdapter2 = ApiHistoryDialogAdapter.this;
+                    apiHistoryDialogAdapter2.notifyItemChanged(apiHistoryDialogAdapter2.data.indexOf(str));
+                    ApiHistoryDialogAdapter.this.dialogInterface.click(str);
+                }
             }
         });
-        holder.itemView.findViewById(R.id.tvDel).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (select.equals(value))
-                    return;
-                notifyItemRemoved(data.indexOf(value));
-                data.remove(value);
-                dialogInterface.del(value, data);
+        selectViewHolder.itemView.findViewById(R.id.tvDel).setOnClickListener(new View.OnClickListener() {
+            /* class com.github.tvbox.osc.ui.adapter.ApiHistoryDialogAdapter.AnonymousClass3 */
+
+            public void onClick(View view) {
+                if (!ApiHistoryDialogAdapter.this.select.equals(str)) {
+                    ApiHistoryDialogAdapter apiHistoryDialogAdapter = ApiHistoryDialogAdapter.this;
+                    apiHistoryDialogAdapter.notifyItemRemoved(apiHistoryDialogAdapter.data.indexOf(str));
+                    ApiHistoryDialogAdapter.this.data.remove(str);
+                    ApiHistoryDialogAdapter.this.dialogInterface.del(str, ApiHistoryDialogAdapter.this.data);
+                }
             }
         });
     }

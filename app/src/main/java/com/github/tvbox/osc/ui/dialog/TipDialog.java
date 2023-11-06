@@ -4,50 +4,47 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.view.View;
 import android.widget.TextView;
-
-import androidx.annotation.NonNull;
-
 import com.github.tvbox.osc.R;
-
-import org.jetbrains.annotations.NotNull;
 
 public class TipDialog extends BaseDialog {
 
-    public TipDialog(@NonNull @NotNull Context context, String tip, String left, String right, OnListener listener) {
-        super(context);
-        setContentView(R.layout.dialog_tip);
-        setCanceledOnTouchOutside(false);
-        TextView tipInfo = findViewById(R.id.tipInfo);
-        TextView leftBtn = findViewById(R.id.leftBtn);
-        TextView rightBtn = findViewById(R.id.rightBtn);
-        tipInfo.setText(tip);
-        leftBtn.setText(left);
-        rightBtn.setText(right);
-        leftBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                listener.left();
-            }
-        });
-        rightBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                listener.right();
-            }
-        });
-        setOnCancelListener(new OnCancelListener() {
-            @Override
-            public void onCancel(DialogInterface dialog) {
-                listener.cancel();
-            }
-        });
-    }
-
     public interface OnListener {
+        void cancel();
+
         void left();
 
         void right();
+    }
 
-        void cancel();
+    public TipDialog(Context context, String str, String str2, String str3, final OnListener onListener) {
+        super(context);
+        setContentView(R.layout.dialog_tip);
+        setCanceledOnTouchOutside(false);
+        TextView textView = (TextView) findViewById(R.id.leftBtn);
+        TextView textView2 = (TextView) findViewById(R.id.rightBtn);
+        ((TextView) findViewById(R.id.tipInfo)).setText(str);
+        textView.setText(str2);
+        textView2.setText(str3);
+        textView.setOnClickListener(new View.OnClickListener() {
+            /* class com.github.tvbox.osc.ui.dialog.TipDialog.AnonymousClass1 */
+
+            public void onClick(View view) {
+                onListener.left();
+            }
+        });
+        textView2.setOnClickListener(new View.OnClickListener() {
+            /* class com.github.tvbox.osc.ui.dialog.TipDialog.AnonymousClass2 */
+
+            public void onClick(View view) {
+                onListener.right();
+            }
+        });
+        setOnCancelListener(new DialogInterface.OnCancelListener() {
+            /* class com.github.tvbox.osc.ui.dialog.TipDialog.AnonymousClass3 */
+
+            public void onCancel(DialogInterface dialogInterface) {
+                onListener.cancel();
+            }
+        });
     }
 }

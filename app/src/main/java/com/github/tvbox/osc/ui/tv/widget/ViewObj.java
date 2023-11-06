@@ -3,48 +3,42 @@ package com.github.tvbox.osc.ui.tv.widget;
 import android.view.View;
 import android.view.ViewGroup;
 
-/**
- * 描述
- *
- * @author pj567
- * @since 2020/7/28
- */
 public class ViewObj {
-    private final View view;
     private final ViewGroup.MarginLayoutParams params;
+    private final View view;
 
-    public ViewObj(View view, ViewGroup.MarginLayoutParams params) {
-        this.view = view;
-        this.params = params;
+    public ViewObj(View view2, ViewGroup.MarginLayoutParams marginLayoutParams) {
+        this.view = view2;
+        this.params = marginLayoutParams;
     }
 
-    public void setMarginLeft(int left) {
-        params.leftMargin = left;
-        view.setLayoutParams(params);
+    public void setMarginLeft(int i) {
+        this.params.leftMargin = i;
+        this.view.setLayoutParams(this.params);
     }
 
-    public void setMarginTop(int top) {
-        params.topMargin = top;
-        view.setLayoutParams(params);
+    public void setMarginTop(int i) {
+        this.params.topMargin = i;
+        this.view.setLayoutParams(this.params);
     }
 
-    public void setMarginRight(int right) {
-        params.rightMargin = right;
-        view.setLayoutParams(params);
+    public void setMarginRight(int i) {
+        this.params.rightMargin = i;
+        this.view.setLayoutParams(this.params);
     }
 
-    public void setMarginBottom(int bottom) {
-        params.bottomMargin = bottom;
-        view.setLayoutParams(params);
+    public void setMarginBottom(int i) {
+        this.params.bottomMargin = i;
+        this.view.setLayoutParams(this.params);
     }
 
-    public void setWidth(int width) {
-        params.width = width;
-        view.setLayoutParams(params);
+    public void setWidth(int i) {
+        this.params.width = i;
+        this.view.setLayoutParams(this.params);
     }
 
-    public void setHeight(int height) {
-        params.height = height;
-        view.setLayoutParams(params);
+    public void setHeight(int i) {
+        this.params.height = i;
+        this.view.setLayoutParams(this.params);
     }
 }

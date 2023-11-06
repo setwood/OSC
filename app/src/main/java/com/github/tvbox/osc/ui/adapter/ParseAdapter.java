@@ -1,30 +1,26 @@
 package com.github.tvbox.osc.ui.adapter;
 
-import android.graphics.Color;
-import android.view.View;
 import android.widget.TextView;
-
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.chad.library.adapter.base.BaseViewHolder;
 import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.bean.ParseBean;
-
 import java.util.ArrayList;
 
 public class ParseAdapter extends BaseQuickAdapter<ParseBean, BaseViewHolder> {
     public ParseAdapter() {
-        super(R.layout.item_play_parse, new ArrayList<>());
+        super(R.layout.item_play_parse, new ArrayList());
     }
 
-    @Override
-    protected void convert(BaseViewHolder helper, ParseBean item) {
-        TextView tvParse = helper.getView(R.id.tvParse);
-        tvParse.setVisibility(View.VISIBLE);
-        if (item.isDefault()) {
-            tvParse.setTextColor(mContext.getResources().getColor(R.color.color_02F8E1));
+    /* access modifiers changed from: protected */
+    public void convert(BaseViewHolder baseViewHolder, ParseBean parseBean) {
+        TextView textView = (TextView) baseViewHolder.getView(R.id.tvParse);
+        textView.setVisibility(0);
+        if (parseBean.isDefault()) {
+            textView.setTextColor(this.mContext.getResources().getColor(R.color.color_theme));
         } else {
-            tvParse.setTextColor(Color.WHITE);
+            textView.setTextColor(-1);
         }
-        tvParse.setText(item.getName());
+        textView.setText(parseBean.getName());
     }
 }

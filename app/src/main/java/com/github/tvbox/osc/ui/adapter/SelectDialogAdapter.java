@@ -4,94 +4,95 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-
-import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.github.tvbox.osc.R;
-
-import org.jetbrains.annotations.NotNull;
-
 import java.util.ArrayList;
 import java.util.List;
 
-public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.SelectViewHolder> {
-
-    class SelectViewHolder extends RecyclerView.ViewHolder {
-
-        public SelectViewHolder(@NonNull @NotNull View itemView) {
-            super(itemView);
-        }
-    }
-
-    public interface SelectDialogInterface<T> {
-        void click(T value, int pos);
-
-        String getDisplay(T val);
-    }
-
-
+public class SelectDialogAdapter<T> extends ListAdapter<T, SelectViewHolder> {
     public static DiffUtil.ItemCallback<String> stringDiff = new DiffUtil.ItemCallback<String>() {
+        /* class com.github.tvbox.osc.ui.adapter.SelectDialogAdapter.AnonymousClass1 */
 
-        @Override
-        public boolean areItemsTheSame(@NonNull @NotNull String oldItem, @NonNull @NotNull String newItem) {
-            return oldItem.equals(newItem);
+        public boolean areItemsTheSame(String str, String str2) {
+            return str.equals(str2);
         }
 
-        @Override
-        public boolean areContentsTheSame(@NonNull @NotNull String oldItem, @NonNull @NotNull String newItem) {
-            return oldItem.equals(newItem);
+        public boolean areContentsTheSame(String str, String str2) {
+            return str.equals(str2);
         }
     };
+    private ArrayList<T> data;
+    private SelectDialogInterface dialogInterface;
+    private boolean muteCheck;
+    private int select;
 
+    public interface SelectDialogInterface<T> {
+        void click(T t, int i);
 
-    private ArrayList<T> data = new ArrayList<>();
-
-    private int select = 0;
-
-    private SelectDialogInterface dialogInterface = null;
-
-    public SelectDialogAdapter(SelectDialogInterface dialogInterface, DiffUtil.ItemCallback diffCallback) {
-        super(diffCallback);
-        this.dialogInterface = dialogInterface;
+        String getDisplay(T t);
     }
 
-    public void setData(List<T> newData, int defaultSelect) {
-        data.clear();
-        data.addAll(newData);
-        select = defaultSelect;
+    /* access modifiers changed from: package-private */
+    public class SelectViewHolder extends RecyclerView.ViewHolder {
+        public SelectViewHolder(View view) {
+            super(view);
+        }
+    }
+
+    public SelectDialogAdapter(SelectDialogInterface selectDialogInterface, DiffUtil.ItemCallback itemCallback) {
+        this(selectDialogInterface, itemCallback, false);
+    }
+
+    public SelectDialogAdapter(SelectDialogInterface selectDialogInterface, DiffUtil.ItemCallback itemCallback, boolean z) {
+        super(itemCallback);
+        this.muteCheck = false;
+        this.data = new ArrayList<>();
+        this.select = 0;
+        this.dialogInterface = null;
+        this.dialogInterface = selectDialogInterface;
+        this.muteCheck = z;
+    }
+
+    public void setData(List<T> list, int i) {
+        this.data.clear();
+        this.data.addAll(list);
+        this.select = i;
         notifyDataSetChanged();
     }
 
-    @Override
+    @Override // androidx.recyclerview.widget.ListAdapter, androidx.recyclerview.widget.RecyclerView.Adapter
     public int getItemCount() {
-        return data.size();
+        return this.data.size();
     }
 
-
-    @Override
-    public SelectDialogAdapter.SelectViewHolder onCreateViewHolder(@NonNull @NotNull ViewGroup parent, int viewType) {
-        return new SelectDialogAdapter.SelectViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_dialog_select, parent, false));
+    @Override // androidx.recyclerview.widget.RecyclerView.Adapter
+    public SelectViewHolder onCreateViewHolder(ViewGroup viewGroup, int i) {
+        return new SelectViewHolder(LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.item_dialog_select, viewGroup, false));
     }
 
-    @Override
-    public void onBindViewHolder(@NonNull @NotNull SelectDialogAdapter.SelectViewHolder holder, int position) {
-        T value = data.get(position);
-        String name = dialogInterface.getDisplay(value);
-        if (position == select)
-            name = "√ " + name;
-        ((TextView) holder.itemView.findViewById(R.id.tvName)).setText(name);
-        holder.itemView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (position == select)
-                    return;
-                notifyItemChanged(select);
-                select = position;
-                notifyItemChanged(select);
-                dialogInterface.click(value, position);
+    public void onBindViewHolder(SelectViewHolder selectViewHolder, final int i) {
+        final T t = this.data.get(i);
+        String display = this.dialogInterface.getDisplay(t);
+        if (!this.muteCheck && i == this.select) {
+            display = "√ " + display;
+        }
+        ((TextView) selectViewHolder.itemView.findViewById(R.id.tvName)).setText(display);
+        selectViewHolder.itemView.setOnClickListener(new View.OnClickListener() {
+            /* class com.github.tvbox.osc.ui.adapter.SelectDialogAdapter.AnonymousClass2 */
+
+            /* JADX DEBUG: Multi-variable search result rejected for r3v7, resolved type: com.github.tvbox.osc.ui.adapter.SelectDialogAdapter$SelectDialogInterface */
+            /* JADX WARN: Multi-variable type inference failed */
+            public void onClick(View view) {
+                if (SelectDialogAdapter.this.muteCheck || i != SelectDialogAdapter.this.select) {
+                    SelectDialogAdapter selectDialogAdapter = SelectDialogAdapter.this;
+                    selectDialogAdapter.notifyItemChanged(selectDialogAdapter.select);
+                    SelectDialogAdapter.this.select = i;
+                    SelectDialogAdapter selectDialogAdapter2 = SelectDialogAdapter.this;
+                    selectDialogAdapter2.notifyItemChanged(selectDialogAdapter2.select);
+                    SelectDialogAdapter.this.dialogInterface.click(t, i);
+                }
             }
         });
     }
